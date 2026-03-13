@@ -1,0 +1,14 @@
+{
+  "name": "coal-billboard-system-vercel",
+  "version": "1.5.0",
+  "description": "煤矿内参告示牌系统 - Vercel版本",
+  "scripts": {
+    "dev": "vercel dev",
+    "init-db": "node lib/init-db.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.11.3"
+  }
+}
