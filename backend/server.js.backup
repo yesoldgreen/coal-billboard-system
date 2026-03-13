@@ -1,0 +1,274 @@
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const db = require('./database');
+
+const app = express();
+const PORT = 3000;
+const SECRET_KEY = 'coal-billboard-secret-key-2026';
+
+app.use(cors());
+app.use(bodyParser.json());
+
+// 认证中间件
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: '未授权访问' });
+  }
+
+  jwt.verify(token, SECRET_KEY, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Token无效或已过期' });
+    }
+    req.user = user;
+    next();
+  });
+};
+
+// ==================== 认证接口 ====================
+
+// 登录
+app.post('/api/admin/login', (req, res) => {
+  const { username, password } = req.body;
+
+  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+
+  if (!user || !bcrypt.compareSync(password, user.password)) {
+    return res.status(401).json({ error: '用户名或密码错误' });
+  }
+
+  const token = jwt.sign({ id: user.id, username: user.username }, SECRET_KEY, { expiresIn: '24h' });
+
+  res.json({
+    success: true,
+    token,
+    user: { id: user.id, username: user.username }
+  });
+});
+
+// ==================== 告示牌管理接口 ====================
+
+// 获取所有告示牌
+app.get('/api/billboards', authenticateToken, (req, res) => {
+  const billboards = db.prepare('SELECT * FROM billboards ORDER BY created_at DESC').all();
+  res.json({ success: true, data: billboards });
+});
+
+// 创建告示牌
+app.post('/api/billboards', authenticateToken, (req, res) => {
+  const { name } = req.body;
+
+  if (!name) {
+    return res.status(400).json({ error: '告示牌名称不能为空' });
+  }
+
+  const result = db.prepare('INSERT INTO billboards (name) VALUES (?)').run(name);
+
+  res.json({
+    success: true,
+    data: { id: result.lastInsertRowid, name }
+  });
+});
+
+// 更新告示牌
+app.put('/api/billboards/:id', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const { name } = req.body;
+
+  if (!name) {
+    return res.status(400).json({ error: '告示牌名称不能为空' });
+  }
+
+  db.prepare('UPDATE billboards SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(name, id);
+
+  res.json({ success: true });
+});
+
+// 删除告示牌
+app.delete('/api/billboards/:id', authenticateToken, (req, res) => {
+  const { id } = req.params;
+
+  db.prepare('DELETE FROM billboards WHERE id = ?').run(id);
+
+  res.json({ success: true });
+});
+
+// ==================== 数据管理接口 ====================
+
+// 获取告示牌所有数据
+app.get('/api/billboards/:id/data', authenticateToken, (req, res) => {
+  const { id } = req.params;
+
+  const billboard = db.prepare('SELECT * FROM billboards WHERE id = ?').get(id);
+  if (!billboard) {
+    return res.status(404).json({ error: '告示牌不存在' });
+  }
+
+  const queueData = db.prepare('SELECT * FROM module_queue WHERE billboard_id = ? ORDER BY sort_order').all(id);
+  const qualityData = db.prepare('SELECT * FROM module_quality_price WHERE billboard_id = ? ORDER BY sort_order').all(id);
+  const logisticsData = db.prepare('SELECT * FROM module_logistics WHERE billboard_id = ? ORDER BY sort_order').all(id);
+  const queueAds = db.prepare('SELECT * FROM advertisements WHERE billboard_id = ? AND module_type = ? ORDER BY sort_order').all(id, 'queue');
+  const qualityAds = db.prepare('SELECT * FROM advertisements WHERE billboard_id = ? AND module_type = ? ORDER BY sort_order').all(id, 'quality');
+  const logisticsAds = db.prepare('SELECT * FROM advertisements WHERE billboard_id = ? AND module_type = ? ORDER BY sort_order').all(id, 'logistics');
+  const updateTimes = db.prepare('SELECT * FROM module_update_times WHERE billboard_id = ?').all(id);
+
+  res.json({
+    success: true,
+    data: {
+      billboard,
+      queue: queueData,
+      quality: qualityData,
+      logistics: logisticsData,
+      queueAds,
+      qualityAds,
+      logisticsAds,
+      updateTimes
+    }
+  });
+});
+
+// 更新排队拉运数据
+app.put('/api/billboards/:id/queue', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const { data } = req.body;
+
+  // 删除旧数据
+  db.prepare('DELETE FROM module_queue WHERE billboard_id = ?').run(id);
+
+  // 插入新数据
+  const stmt = db.prepare('INSERT INTO module_queue (billboard_id, pit_name, contracted, queuing, called, entered, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)');
+
+  data.forEach((item, index) => {
+    stmt.run(id, item.pit_name, item.contracted, item.queuing, item.called, item.entered, index);
+  });
+
+  // 更新模块更新时间
+  db.prepare(`
+    INSERT INTO module_update_times (billboard_id, module_type, updated_at)
+    VALUES (?, 'queue', CURRENT_TIMESTAMP)
+    ON CONFLICT(billboard_id, module_type)
+    DO UPDATE SET updated_at = CURRENT_TIMESTAMP
+  `).run(id);
+
+  res.json({ success: true });
+});
+
+// 更新质量/价格数据
+app.put('/api/billboards/:id/quality', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const { data } = req.body;
+
+  // 删除旧数据
+  db.prepare('DELETE FROM module_quality_price WHERE billboard_id = ?').run(id);
+
+  // 插入新数据
+  const stmt = db.prepare('INSERT INTO module_quality_price (billboard_id, pit_name, heat_value, ash, sulfur, price, change_value, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+
+  data.forEach((item, index) => {
+    stmt.run(id, item.pit_name, item.heat_value, item.ash, item.sulfur, item.price, item.change_value, index);
+  });
+
+  // 更新模块更新时间
+  db.prepare(`
+    INSERT INTO module_update_times (billboard_id, module_type, updated_at)
+    VALUES (?, 'quality', CURRENT_TIMESTAMP)
+    ON CONFLICT(billboard_id, module_type)
+    DO UPDATE SET updated_at = CURRENT_TIMESTAMP
+  `).run(id);
+
+  res.json({ success: true });
+});
+
+// 更新物流费用数据
+app.put('/api/billboards/:id/logistics', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const { data } = req.body;
+
+  // 删除旧数据
+  db.prepare('DELETE FROM module_logistics WHERE billboard_id = ?').run(id);
+
+  // 插入新数据
+  const stmt = db.prepare('INSERT INTO module_logistics (billboard_id, route_type, from_location, to_location, freight, station_name, station_freight, station_fee, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+
+  data.forEach((item, index) => {
+    stmt.run(id, item.route_type, item.from_location, item.to_location, item.freight, item.station_name, item.station_freight, item.station_fee, index);
+  });
+
+  // 更新模块更新时间
+  db.prepare(`
+    INSERT INTO module_update_times (billboard_id, module_type, updated_at)
+    VALUES (?, 'logistics', CURRENT_TIMESTAMP)
+    ON CONFLICT(billboard_id, module_type)
+    DO UPDATE SET updated_at = CURRENT_TIMESTAMP
+  `).run(id);
+
+  res.json({ success: true });
+});
+
+// 更新广告
+app.put('/api/billboards/:id/ads', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const { moduleType, data } = req.body;
+
+  // 删除旧广告
+  db.prepare('DELETE FROM advertisements WHERE billboard_id = ? AND module_type = ?').run(id, moduleType);
+
+  // 插入新广告
+  if (data && data.length > 0) {
+    const stmt = db.prepare('INSERT INTO advertisements (billboard_id, module_type, content, sort_order) VALUES (?, ?, ?, ?)');
+
+    data.forEach((item, index) => {
+      stmt.run(id, moduleType, item.content, index);
+    });
+  }
+
+  res.json({ success: true });
+});
+
+// ==================== 客户端接口 ====================
+
+// 获取告示牌展示数据（无需认证）
+app.get('/api/client/billboards/:id', (req, res) => {
+  const { id } = req.params;
+
+  const billboard = db.prepare('SELECT * FROM billboards WHERE id = ?').get(id);
+  if (!billboard) {
+    return res.status(404).json({ error: '告示牌不存在' });
+  }
+
+  const queueData = db.prepare('SELECT * FROM module_queue WHERE billboard_id = ? ORDER BY sort_order').all(id);
+  const qualityData = db.prepare('SELECT * FROM module_quality_price WHERE billboard_id = ? ORDER BY sort_order').all(id);
+  const logisticsData = db.prepare('SELECT * FROM module_logistics WHERE billboard_id = ? ORDER BY sort_order').all(id);
+  const queueAds = db.prepare('SELECT * FROM advertisements WHERE billboard_id = ? AND module_type = ? ORDER BY sort_order').all(id, 'queue');
+  const qualityAds = db.prepare('SELECT * FROM advertisements WHERE billboard_id = ? AND module_type = ? ORDER BY sort_order').all(id, 'quality');
+  const logisticsAds = db.prepare('SELECT * FROM advertisements WHERE billboard_id = ? AND module_type = ? ORDER BY sort_order').all(id, 'logistics');
+  const updateTimes = db.prepare('SELECT * FROM module_update_times WHERE billboard_id = ?').all(id);
+
+  const updateTimesMap = {};
+  updateTimes.forEach(item => {
+    updateTimesMap[item.module_type] = item.updated_at;
+  });
+
+  res.json({
+    success: true,
+    data: {
+      billboard,
+      queue: queueData,
+      quality: qualityData,
+      logistics: logisticsData,
+      queueAds,
+      qualityAds,
+      logisticsAds,
+      updateTimes: updateTimesMap
+    }
+  });
+});
+
+app.listen(PORT, () => {
+  console.log(`服务器运行在 http://localhost:${PORT}`);
+});

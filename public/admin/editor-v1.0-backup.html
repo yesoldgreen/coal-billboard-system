@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>编辑告示牌数据</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background-color: #f0f2f5;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            display: inline-block;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background-color: #1890ff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #40a9ff;
+        }
+
+        .btn-success {
+            background-color: #52c41a;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #73d13d;
+        }
+
+        .btn-danger {
+            background-color: #ff4d4f;
+            color: white;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 2px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            color: #595959;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.3s;
+            font-size: 15px;
+        }
+
+        .tab.active {
+            color: #1890ff;
+            border-bottom-color: #1890ff;
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 10px;
+            border: 1px solid #e8e8e8;
+            text-align: center;
+        }
+
+        .data-table th {
+            background-color: #fafafa;
+            font-weight: 600;
+            color: #262626;
+        }
+
+        .data-table input,
+        .data-table select {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .data-table input:focus,
+        .data-table select:focus {
+            outline: none;
+            border-color: #1890ff;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 20px 0 10px 0;
+            color: #262626;
+        }
+
+        .ad-list {
+            margin-bottom: 15px;
+        }
+
+        .ad-item {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .ad-item input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+        }
+
+        .message {
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+
+        .message.success {
+            background-color: #f6ffed;
+            border: 1px solid #b7eb8f;
+            color: #52c41a;
+        }
+
+        .message.error {
+            background-color: #fff2f0;
+            border: 1px solid #ffccc7;
+            color: #ff4d4f;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #8c8c8c;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1 id="pageTitle">编辑告示牌数据</h1>
+        <div>
+            <a href="index.html" class="btn btn-primary">← 返回列表</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="message"></div>
+
+        <div class="card">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('queue')">排队拉运</button>
+                <button class="tab" onclick="switchTab('quality')">质量/价格</button>
+                <button class="tab" onclick="switchTab('logistics')">物流费用</button>
+            </div>
+
+            <!-- 排队拉运 -->
+            <div id="queue" class="tab-content active">
+                <div class="section-title">📊 排队拉运数据</div>
+                <table class="data-table" id="queueTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 20%">坑口</th>
+                            <th style="width: 15%">已磨约</th>
+                            <th style="width: 15%">排队中</th>
+                            <th style="width: 15%">已叫号</th>
+                            <th style="width: 15%">已入场</th>
+                            <th style="width: 10%">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="queueData"></tbody>
+                </table>
+                <button class="btn btn-primary" onclick="addQueueRow()">+ 添加行</button>
+
+                <div class="section-title">📢 广告</div>
+                <div class="ad-list" id="queueAds"></div>
+                <button class="btn btn-primary" onclick="addQueueAd()">+ 添加广告</button>
+                <br><br>
+                <button class="btn btn-success" style="font-size: 16px; padding: 12px 30px;" onclick="saveQueue()">💾 保存排队拉运数据</button>
+            </div>
+
+            <!-- 质量/价格 -->
+            <div id="quality" class="tab-content">
+                <div class="section-title">📊 质量/价格数据</div>
+                <table class="data-table" id="qualityTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 15%">坑口</th>
+                            <th style="width: 12%">热值</th>
+                            <th style="width: 12%">灰分</th>
+                            <th style="width: 12%">硫</th>
+                            <th style="width: 15%">含税价格</th>
+                            <th style="width: 15%">较上期变动</th>
+                            <th style="width: 10%">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="qualityData"></tbody>
+                </table>
+                <button class="btn btn-primary" onclick="addQualityRow()">+ 添加行</button>
+
+                <div class="section-title">📢 广告</div>
+                <div class="ad-list" id="qualityAds"></div>
+                <button class="btn btn-primary" onclick="addQualityAd()">+ 添加广告</button>
+                <br><br>
+                <button class="btn btn-success" style="font-size: 16px; padding: 12px 30px;" onclick="saveQuality()">💾 保存质量/价格数据</button>
+            </div>
+
+            <!-- 物流费用 -->
+            <div id="logistics" class="tab-content">
+                <div class="section-title">📊 物流费用数据</div>
+                <table class="data-table" id="logisticsTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 12%">类型</th>
+                            <th style="width: 15%">起点</th>
+                            <th style="width: 15%">终点</th>
+                            <th style="width: 10%">运费</th>
+                            <th style="width: 15%">集运站名称</th>
+                            <th style="width: 10%">站运费</th>
+                            <th style="width: 10%">站台费</th>
+                            <th style="width: 8%">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logisticsData"></tbody>
+                </table>
+                <button class="btn btn-primary" onclick="addLogisticsRow()">+ 添加行</button>
+
+                <div class="section-title">📢 广告</div>
+                <div class="ad-list" id="logisticsAds"></div>
+                <button class="btn btn-primary" onclick="addLogisticsAd()">+ 添加广告</button>
+                <br><br>
+                <button class="btn btn-success" style="font-size: 16px; padding: 12px 30px;" onclick="saveLogistics()">💾 保存物流费用数据</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = '/api';
+        const token = localStorage.getItem('token');
+        const urlParams = new URLSearchParams(window.location.search);
+        const billboardId = urlParams.get('id');
+
+        if (!token || !billboardId) {
+            window.location.href = 'index.html';
+        }
+
+        let queueData = [];
+        let queueAds = [];
+        let qualityData = [];
+        let qualityAds = [];
+        let logisticsData = [];
+        let logisticsAds = [];
+
+        // 切换标签
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        // 显示消息
+        function showMessage(text, type = 'success') {
+            const msgEl = document.getElementById('message');
+            msgEl.innerHTML = `<div class="message ${type}">${text}</div>`;
+            setTimeout(() => msgEl.innerHTML = '', 3000);
+        }
+
+        // 加载数据
+        async function loadData() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/billboards/${billboardId}/data`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    document.getElementById('pageTitle').textContent = `编辑告示牌数据 - ${result.data.billboard.name}`;
+                    queueData = result.data.queue || [];
+                    queueAds = result.data.queueAds || [];
+                    qualityData = result.data.quality || [];
+                    qualityAds = result.data.qualityAds || [];
+                    logisticsData = result.data.logistics || [];
+                    logisticsAds = result.data.logisticsAds || [];
+
+                    renderQueue();
+                    renderQuality();
+                    renderLogistics();
+                }
+            } catch (error) {
+                showMessage('加载数据失败: ' + error.message, 'error');
+            }
+        }
+
+        // 排队拉运
+        function renderQueue() {
+            const tbody = document.getElementById('queueData');
+            tbody.innerHTML = queueData.length === 0 ? '<tr><td colspan="6">暂无数据，点击"添加行"开始</td></tr>' :
+                queueData.map((item, index) => `
+                    <tr>
+                        <td><input type="text" value="${item.pit_name || ''}" onchange="queueData[${index}].pit_name = this.value"></td>
+                        <td><input type="text" value="${item.contracted || ''}" onchange="queueData[${index}].contracted = this.value"></td>
+                        <td><input type="text" value="${item.queuing || ''}" onchange="queueData[${index}].queuing = this.value"></td>
+                        <td><input type="text" value="${item.called || ''}" onchange="queueData[${index}].called = this.value"></td>
+                        <td><input type="text" value="${item.entered || ''}" onchange="queueData[${index}].entered = this.value"></td>
+                        <td><button class="btn btn-danger" onclick="deleteQueueRow(${index})">删除</button></td>
+                    </tr>
+                `).join('');
+
+            const adsEl = document.getElementById('queueAds');
+            adsEl.innerHTML = queueAds.map((ad, index) => `
+                <div class="ad-item">
+                    <input type="text" value="${ad.content || ''}" onchange="queueAds[${index}].content = this.value" placeholder="例如：八通煤炭 136 1234 5678 汇能长滩专业代发 九年老店">
+                    <button class="btn btn-danger" onclick="deleteQueueAd(${index})">删除</button>
+                </div>
+            `).join('');
+        }
+
+        function addQueueRow() {
+            queueData.push({ pit_name: '', contracted: '', queuing: '', called: '', entered: '' });
+            renderQueue();
+        }
+
+        function deleteQueueRow(index) {
+            queueData.splice(index, 1);
+            renderQueue();
+        }
+
+        function addQueueAd() {
+            queueAds.push({ content: '' });
+            renderQueue();
+        }
+
+        function deleteQueueAd(index) {
+            queueAds.splice(index, 1);
+            renderQueue();
+        }
+
+        async function saveQueue() {
+            try {
+                await fetch(`${API_BASE_URL}/billboards/${billboardId}/queue`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ data: queueData })
+                });
+
+                await fetch(`${API_BASE_URL}/billboards/${billboardId}/ads`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ moduleType: 'queue', data: queueAds })
+                });
+
+                showMessage('✅ 排队拉运数据保存成功！');
+            } catch (error) {
+                showMessage('❌ 保存失败: ' + error.message, 'error');
+            }
+        }
+
+        // 质量/价格
+        function renderQuality() {
+            const tbody = document.getElementById('qualityData');
+            tbody.innerHTML = qualityData.length === 0 ? '<tr><td colspan="7">暂无数据，点击"添加行"开始</td></tr>' :
+                qualityData.map((item, index) => `
+                    <tr>
+                        <td><input type="text" value="${item.pit_name || ''}" onchange="qualityData[${index}].pit_name = this.value"></td>
+                        <td><input type="text" value="${item.heat_value || ''}" onchange="qualityData[${index}].heat_value = this.value"></td>
+                        <td><input type="text" value="${item.ash || ''}" onchange="qualityData[${index}].ash = this.value"></td>
+                        <td><input type="text" value="${item.sulfur || ''}" onchange="qualityData[${index}].sulfur = this.value"></td>
+                        <td><input type="text" value="${item.price || ''}" onchange="qualityData[${index}].price = this.value"></td>
+                        <td><input type="text" value="${item.change_value || ''}" onchange="qualityData[${index}].change_value = this.value" placeholder="+10 或 -5"></td>
+                        <td><button class="btn btn-danger" onclick="deleteQualityRow(${index})">删除</button></td>
+                    </tr>
+                `).join('');
+
+            const adsEl = document.getElementById('qualityAds');
+            adsEl.innerHTML = qualityAds.map((ad, index) => `
+                <div class="ad-item">
+                    <input type="text" value="${ad.content || ''}" onchange="qualityAds[${index}].content = this.value" placeholder="例如：诚信煤炭 150 0000 8888 汇能煤质检测 权威认证">
+                    <button class="btn btn-danger" onclick="deleteQualityAd(${index})">删除</button>
+                </div>
+            `).join('');
+        }
+
+        function addQualityRow() {
+            qualityData.push({ pit_name: '', heat_value: '', ash: '', sulfur: '', price: '', change_value: '' });
+            renderQuality();
+        }
+
+        function deleteQualityRow(index) {
+            qualityData.splice(index, 1);
+            renderQuality();
+        }
+
+        function addQualityAd() {
+            qualityAds.push({ content: '' });
+            renderQuality();
+        }
+
+        function deleteQualityAd(index) {
+            qualityAds.splice(index, 1);
+            renderQuality();
+        }
+
+        async function saveQuality() {
+            try {
+                await fetch(`${API_BASE_URL}/billboards/${billboardId}/quality`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ data: qualityData })
+                });
+
+                await fetch(`${API_BASE_URL}/billboards/${billboardId}/ads`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ moduleType: 'quality', data: qualityAds })
+                });
+
+                showMessage('✅ 质量/价格数据保存成功！');
+            } catch (error) {
+                showMessage('❌ 保存失败: ' + error.message, 'error');
+            }
+        }
+
+        // 物流费用
+        function renderLogistics() {
+            const tbody = document.getElementById('logisticsData');
+            tbody.innerHTML = logisticsData.length === 0 ? '<tr><td colspan="8">暂无数据，点击"添加行"开始</td></tr>' :
+                logisticsData.map((item, index) => `
+                    <tr>
+                        <td>
+                            <select onchange="logisticsData[${index}].route_type = this.value; renderLogistics();">
+                                <option value="direct" ${item.route_type === 'direct' ? 'selected' : ''}>直运</option>
+                                <option value="station" ${item.route_type === 'station' ? 'selected' : ''}>集运站</option>
+                            </select>
+                        </td>
+                        <td><input type="text" value="${item.from_location || ''}" onchange="logisticsData[${index}].from_location = this.value" ${item.route_type === 'station' ? 'disabled' : ''}></td>
+                        <td><input type="text" value="${item.to_location || ''}" onchange="logisticsData[${index}].to_location = this.value" ${item.route_type === 'station' ? 'disabled' : ''}></td>
+                        <td><input type="text" value="${item.freight || ''}" onchange="logisticsData[${index}].freight = this.value" ${item.route_type === 'station' ? 'disabled' : ''}></td>
+                        <td><input type="text" value="${item.station_name || ''}" onchange="logisticsData[${index}].station_name = this.value" ${item.route_type === 'direct' ? 'disabled' : ''}></td>
+                        <td><input type="text" value="${item.station_freight || ''}" onchange="logisticsData[${index}].station_freight = this.value" ${item.route_type === 'direct' ? 'disabled' : ''}></td>
+                        <td><input type="text" value="${item.station_fee || ''}" onchange="logisticsData[${index}].station_fee = this.value" ${item.route_type === 'direct' ? 'disabled' : ''}></td>
+                        <td><button class="btn btn-danger" onclick="deleteLogisticsRow(${index})">删除</button></td>
+                    </tr>
+                `).join('');
+
+            const adsEl = document.getElementById('logisticsAds');
+            adsEl.innerHTML = logisticsAds.map((ad, index) => `
+                <div class="ad-item">
+                    <input type="text" value="${ad.content || ''}" onchange="logisticsAds[${index}].content = this.value" placeholder="例如：友达物流 138 0000 8888 汇能长滩派山店专线 河北 内蒙">
+                    <button class="btn btn-danger" onclick="deleteLogisticsAd(${index})">删除</button>
+                </div>
+            `).join('');
+        }
+
+        function addLogisticsRow() {
+            logisticsData.push({ route_type: 'direct', from_location: '', to_location: '', freight: '', station_name: '', station_freight: '', station_fee: '' });
+            renderLogistics();
+        }
+
+        function deleteLogisticsRow(index) {
+            logisticsData.splice(index, 1);
+            renderLogistics();
+        }
+
+        function addLogisticsAd() {
+            logisticsAds.push({ content: '' });
+            renderLogistics();
+        }
+
+        function deleteLogisticsAd(index) {
+            logisticsAds.splice(index, 1);
+            renderLogistics();
+        }
+
+        async function saveLogistics() {
+            try {
+                await fetch(`${API_BASE_URL}/billboards/${billboardId}/logistics`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ data: logisticsData })
+                });
+
+                await fetch(`${API_BASE_URL}/billboards/${billboardId}/ads`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ moduleType: 'logistics', data: logisticsAds })
+                });
+
+                showMessage('✅ 物流费用数据保存成功！');
+            } catch (error) {
+                showMessage('❌ 保存失败: ' + error.message, 'error');
+            }
+        }
+
+        loadData();
+    </script>
+</body>
+</html>

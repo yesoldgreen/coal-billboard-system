@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>煤矿内参告示牌</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background-color: #f0f2f5;
+        }
+
+        .billboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #fff;
+        }
+
+        .loading-container, .error-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-size: 20px;
+            color: #666;
+        }
+
+        /* 顶栏 */
+        .header {
+            background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header-logo {
+            width: 50px;
+            height: 50px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .header-title {
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+
+        /* 模块通用样式 */
+        .module {
+            margin: 20px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .module-header {
+            padding: 15px 20px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+        }
+
+        .module-title {
+            font-size: 20px;
+        }
+
+        .update-time {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        /* 排队拉运模块 */
+        .module-queue .module-header {
+            background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+        }
+
+        /* 质量/价格模块 */
+        .module-quality .module-header {
+            background: linear-gradient(135deg, #52c41a 0%, #3fa516 100%);
+        }
+
+        /* 物流费用模块 */
+        .module-logistics .module-header {
+            background: linear-gradient(135deg, #fa8c16 0%, #d97706 100%);
+        }
+
+        /* 广告容器 */
+        .ads-container {
+            background-color: #fffbe6;
+            padding: 12px 20px;
+            border-bottom: 2px solid #ffd666;
+        }
+
+        .ad-item {
+            color: #d48806;
+            font-size: 14px;
+            line-height: 1.8;
+            font-weight: 500;
+        }
+
+        /* 数据表格 */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: white;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 12px 15px;
+            text-align: center;
+            border: 1px solid #e8e8e8;
+        }
+
+        .data-table th {
+            background-color: #fafafa;
+            font-weight: bold;
+            color: #333;
+            font-size: 15px;
+        }
+
+        .data-table td {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .data-table tbody tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        /* 变动样式 */
+        .change-up {
+            color: #cf1322;
+            font-weight: bold;
+        }
+
+        .change-down {
+            color: #3f8600;
+            font-weight: bold;
+        }
+
+        /* 物流费用表格特殊样式 - v1.1 三列布局 */
+        .logistics-table .section-header {
+            background-color: #fff7e6;
+            font-weight: bold;
+            color: #d48806;
+            border: 1px solid #ffd666;
+        }
+
+        /* 汽运列样式 */
+        .logistics-table .section-highway {
+            background-color: #e6f7ff;
+            color: #0050b3;
+        }
+
+        .logistics-table .col-highway {
+            border-right: 3px solid #1890ff;
+        }
+
+        /* 上站（集运站）列样式 */
+        .logistics-table .section-station {
+            background-color: #fff7e6;
+            color: #d48806;
+        }
+
+        .logistics-table .col-station {
+            background-color: #fffef9;
+        }
+
+        .logistics-table .col-station:last-of-type {
+            border-right: 3px solid #fa8c16;
+        }
+
+        /* 铁路列样式 */
+        .logistics-table .section-railway {
+            background-color: #f6ffed;
+            color: #389e0d;
+        }
+
+        .logistics-table .col-railway {
+            background-color: #fcfff9;
+        }
+
+        /* 底栏 */
+        .footer {
+            background-color: #595959;
+            color: white;
+            padding: 25px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        .footer-left {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .footer-text {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .footer-phone {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .footer-right {
+            display: flex;
+            gap: 20px;
+        }
+
+        .qrcode-group {
+            display: flex;
+            gap: 20px;
+        }
+
+        .qrcode-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .qrcode-placeholder {
+            width: 80px;
+            height: 80px;
+            background-color: white;
+            border: 2px solid #d9d9d9;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #999;
+        }
+
+        .qrcode-label {
+            font-size: 13px;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .billboard-container {
+                padding: 0;
+            }
+
+            .module {
+                margin: 10px;
+            }
+
+            .header {
+                padding: 15px 20px;
+            }
+
+            .header-title {
+                font-size: 20px;
+            }
+
+            .data-table {
+                font-size: 12px;
+            }
+
+            .data-table th,
+            .data-table td {
+                padding: 8px 5px;
+            }
+
+            .footer {
+                flex-direction: column;
+                gap: 20px;
+                text-align: center;
+            }
+
+            .footer-left {
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="loading-container">
+            <div class="loading">加载中...</div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = '/api';
+
+        // 从URL获取billboard ID
+        const getBillboardId = () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('id') || '1';
+        };
+
+        const formatDateTime = (datetime) => {
+            if (!datetime) return '';
+            // SQLite返回的是UTC时间，需要加'Z'标识，然后Date会自动转换为本地时区
+            const date = new Date(datetime + (datetime.includes('Z') ? '' : 'Z'));
+            return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+        };
+
+        const renderAds = (ads) => {
+            if (!ads || ads.length === 0) return '';
+            return `
+                <div class="ads-container">
+                    ${ads.map(ad => `<div class="ad-item">${ad.content}</div>`).join('')}
+                </div>
+            `;
+        };
+
+        const renderBillboard = (data) => {
+            return `
+                <div class="billboard-container">
+                    <!-- 顶栏 -->
+                    <div class="header">
+                        <div class="header-logo">煤</div>
+                        <div class="header-title">${data.billboard.name}</div>
+                    </div>
+
+                    <!-- 排队拉运模块 -->
+                    <div class="module module-queue">
+                        <div class="module-header">
+                            <span class="module-title">排队拉运</span>
+                            ${data.updateTimes.queue ? `<span class="update-time">更新：${formatDateTime(data.updateTimes.queue)}</span>` : ''}
+                        </div>
+                        ${renderAds(data.queueAds)}
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>坑口</th>
+                                    <th>已磨约</th>
+                                    <th>排队中</th>
+                                    <th>已叫号</th>
+                                    <th>已入场</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.queue.map(item => `
+                                    <tr>
+                                        <td>${item.pit_name}</td>
+                                        <td>${item.contracted}</td>
+                                        <td>${item.queuing}</td>
+                                        <td>${item.called}</td>
+                                        <td>${item.entered}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 质量/价格模块 -->
+                    <div class="module module-quality">
+                        <div class="module-header">
+                            <span class="module-title">质量/价格</span>
+                            ${data.updateTimes.quality ? `<span class="update-time">更新：${formatDateTime(data.updateTimes.quality)}</span>` : ''}
+                        </div>
+                        ${renderAds(data.qualityAds)}
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>坑口</th>
+                                    <th>热值</th>
+                                    <th>灰分</th>
+                                    <th>硫</th>
+                                    <th>含税价格</th>
+                                    <th>较上期变动</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.quality.map(item => {
+                                    const changeClass = item.change_value && item.change_value.startsWith('+') ? 'change-up' :
+                                                       item.change_value && item.change_value.startsWith('-') ? 'change-down' : '';
+                                    return `
+                                        <tr>
+                                            <td>${item.pit_name}</td>
+                                            <td>${item.heat_value}</td>
+                                            <td>${item.ash}</td>
+                                            <td>${item.sulfur}</td>
+                                            <td>${item.price}</td>
+                                            <td class="${changeClass}">${item.change_value}</td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 物流费用模块 -->
+                    <div class="module module-logistics">
+                        <div class="module-header">
+                            <span class="module-title">物流费用</span>
+                            ${data.updateTimes.logistics ? `<span class="update-time">更新：${formatDateTime(data.updateTimes.logistics)}</span>` : ''}
+                        </div>
+                        ${renderAds(data.logisticsAds)}
+                        <table class="data-table logistics-table">
+                            <thead>
+                                <tr>
+                                    <th colspan="2" class="section-header section-highway">汽运</th>
+                                    <th colspan="3" class="section-header section-station">上站</th>
+                                    <th colspan="2" class="section-header section-railway">铁路</th>
+                                </tr>
+                                <tr>
+                                    <th class="col-highway">起点-终点</th>
+                                    <th class="col-highway">汽运费</th>
+                                    <th class="col-station">集运站</th>
+                                    <th class="col-station">上站费</th>
+                                    <th class="col-station">站台费</th>
+                                    <th class="col-railway">起点-终点</th>
+                                    <th class="col-railway">运费</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${(() => {
+                                    const highways = data.logistics.filter(item => item.route_type === 'highway');
+                                    const stations = data.logistics.filter(item => item.route_type === 'station');
+                                    const railways = data.logistics.filter(item => item.route_type === 'railway');
+                                    const maxRows = Math.max(highways.length, stations.length, railways.length, 1);
+
+                                    let rows = '';
+                                    for (let i = 0; i < maxRows; i++) {
+                                        const highway = highways[i];
+                                        const station = stations[i];
+                                        const railway = railways[i];
+
+                                        rows += '<tr>';
+
+                                        // 汽运列
+                                        if (highway) {
+                                            const routeText = highway.from_location && highway.to_location ? `${highway.from_location}-${highway.to_location}` : '';
+                                            rows += `<td class="col-highway">${routeText}</td><td class="col-highway">${highway.freight || ''}</td>`;
+                                        } else {
+                                            rows += `<td class="col-highway"></td><td class="col-highway"></td>`;
+                                        }
+
+                                        // 上站列
+                                        if (station) {
+                                            rows += `<td class="col-station">${station.station_name || ''}</td><td class="col-station">${station.station_loading_fee || ''}</td><td class="col-station">${station.station_fee || ''}</td>`;
+                                        } else {
+                                            rows += `<td class="col-station"></td><td class="col-station"></td><td class="col-station"></td>`;
+                                        }
+
+                                        // 铁路列
+                                        if (railway) {
+                                            const routeText = railway.from_location && railway.to_location ? `${railway.from_location}-${railway.to_location}` : '';
+                                            rows += `<td class="col-railway">${routeText}</td><td class="col-railway">${railway.freight || ''}</td>`;
+                                        } else {
+                                            rows += `<td class="col-railway"></td><td class="col-railway"></td>`;
+                                        }
+
+                                        rows += '</tr>';
+                                    }
+                                    return rows;
+                                })()}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 底栏 -->
+                    <div class="footer">
+                        <div class="footer-left">
+                            <div class="footer-text">扫码 +v 进群看</div>
+                            <div class="footer-phone">咨询电话：18622815982</div>
+                        </div>
+                        <div class="footer-right">
+                            <div class="qrcode-group">
+                                <div class="qrcode-box">
+                                    <div class="qrcode-placeholder">二维码</div>
+                                    <div class="qrcode-label">付费群 每日更新</div>
+                                </div>
+                                <div class="qrcode-box">
+                                    <div class="qrcode-placeholder">二维码</div>
+                                    <div class="qrcode-label">免费群 每周更新</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        };
+
+        const loadData = async () => {
+            try {
+                const billboardId = getBillboardId();
+                const response = await fetch(`${API_BASE_URL}/client/billboards/${billboardId}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    document.getElementById('app').innerHTML = renderBillboard(result.data);
+                } else {
+                    document.getElementById('app').innerHTML = `
+                        <div class="error-container">
+                            <div class="error">${result.error || '加载失败'}</div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('app').innerHTML = `
+                    <div class="error-container">
+                        <div class="error">网络错误，请稍后重试</div>
+                    </div>
+                `;
+            }
+        };
+
+        // 初始加载
+        loadData();
+
+        // 每30秒自动刷新
+        setInterval(loadData, 30000);
+    </script>
+</body>
+</html>

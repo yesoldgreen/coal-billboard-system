@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>煤矿内参告示牌 - 后台管理</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background-color: #f0f2f5;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background-color: #1890ff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #40a9ff;
+        }
+
+        .btn-danger {
+            background-color: #ff4d4f;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #ff7875;
+        }
+
+        .btn-success {
+            background-color: #52c41a;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #73d13d;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #262626;
+        }
+
+        .billboard-list {
+            display: grid;
+            gap: 15px;
+        }
+
+        .billboard-item {
+            border: 1px solid #e8e8e8;
+            border-radius: 6px;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s;
+        }
+
+        .billboard-item:hover {
+            border-color: #1890ff;
+            box-shadow: 0 2px 8px rgba(24,144,255,0.2);
+        }
+
+        .billboard-info {
+            flex: 1;
+        }
+
+        .billboard-name {
+            font-size: 16px;
+            font-weight: bold;
+            color: #262626;
+            margin-bottom: 5px;
+        }
+
+        .billboard-meta {
+            font-size: 12px;
+            color: #8c8c8c;
+        }
+
+        .billboard-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .login-box {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-box h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #262626;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #595959;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #1890ff;
+            box-shadow: 0 0 0 2px rgba(24,144,255,0.2);
+        }
+
+        .btn-block {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            font-size: 18px;
+            color: #262626;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #8c8c8c;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            line-height: 30px;
+            text-align: center;
+        }
+
+        .close-btn:hover {
+            color: #262626;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 2px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            color: #595959;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #1890ff;
+            border-bottom-color: #1890ff;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 8px;
+            border: 1px solid #e8e8e8;
+            text-align: left;
+        }
+
+        .data-table th {
+            background-color: #fafafa;
+            font-weight: 600;
+        }
+
+        .data-table input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+        }
+
+        .error-message {
+            color: #ff4d4f;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .success-message {
+            color: #52c41a;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #8c8c8c;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #8c8c8c;
+        }
+
+        .copy-link {
+            font-size: 12px;
+            color: #1890ff;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        .copy-link:hover {
+            color: #40a9ff;
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+
+    <script>
+        const API_BASE_URL = '/api';
+        let token = localStorage.getItem('token');
+        let currentBillboard = null;
+
+        // 登录页面
+        function renderLogin() {
+            return `
+                <div class="login-container">
+                    <div class="login-box">
+                        <h1>🏭 煤矿内参告示牌</h1>
+                        <h2 style="text-align: center; margin-bottom: 30px; color: #8c8c8c; font-size: 16px;">后台管理系统</h2>
+                        <form id="loginForm">
+                            <div class="form-group">
+                                <label>用户名</label>
+                                <input type="text" id="username" value="hulianshikong" required>
+                            </div>
+                            <div class="form-group">
+                                <label>密码</label>
+                                <input type="password" id="password" value="hlsk2026" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block">登录</button>
+                            <div id="loginError" class="error-message"></div>
+                        </form>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 主页面
+        function renderDashboard(billboards) {
+            const username = localStorage.getItem('username') || 'Admin';
+            return `
+                <div class="header">
+                    <div>
+                        <h1>🏭 煤矿内参告示牌 - 后台管理</h1>
+                        <div style="color: rgba(255,255,255,0.7); font-size: 12px; margin-top: 5px;">v1.5</div>
+                    </div>
+                    <div class="user-info">
+                        <span>👤 ${username}</span>
+                        <button class="btn btn-danger" onclick="logout()">退出</button>
+                    </div>
+                </div>
+                <div class="container">
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h2>📋 告示牌列表</h2>
+                            <button class="btn btn-primary" onclick="showCreateModal()">+ 创建告示牌</button>
+                        </div>
+                        ${billboards.length === 0 ? `
+                            <div class="empty-state">
+                                <p>暂无告示牌</p>
+                                <p style="font-size: 12px; margin-top: 10px;">点击"创建告示牌"按钮开始</p>
+                            </div>
+                        ` : `
+                            <div class="billboard-list">
+                                ${billboards.map(b => `
+                                    <div class="billboard-item">
+                                        <div class="billboard-info">
+                                            <div class="billboard-name">${b.name}</div>
+                                            <div class="billboard-meta">
+                                                ID: ${b.id} | 创建时间: ${formatDate(b.created_at)}
+                                                ${b.subtitle ? `<br>副标题: ${b.subtitle}` : ''}
+                                                <br>
+                                                <span class="copy-link" onclick="copyClientUrl(${b.id})">📋 复制客户端链接</span>
+                                            </div>
+                                        </div>
+                                        <div class="billboard-actions">
+                                            <button class="btn btn-primary" onclick="editBillboard(${b.id})">编辑数据</button>
+                                            <button class="btn btn-success" onclick="renameBillboard(${b.id}, '${b.name.replace(/'/g, "\\'")}', '${(b.subtitle || '实时更新 | 准确可靠').replace(/'/g, "\\'")}')">编辑</button>
+                                            <button class="btn btn-danger" onclick="deleteBillboard(${b.id}, '${b.name.replace(/'/g, "\\'")}')">删除</button>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `}
+                    </div>
+                </div>
+            `;
+        }
+
+        // 格式化日期
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+        }
+
+        // 复制客户端链接
+        function copyClientUrl(id) {
+            const url = `${window.location.origin}/client/index.html?id=${id}`;
+            navigator.clipboard.writeText(url).then(() => {
+                alert('客户端链接已复制到剪贴板！\\n\\n' + url);
+            }).catch(() => {
+                prompt('请复制以下链接：', url);
+            });
+        }
+
+        // 登录
+        async function handleLogin(e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorEl = document.getElementById('loginError');
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    token = result.token;
+                    localStorage.setItem('token', token);
+                    localStorage.setItem('username', username);
+                    loadDashboard();
+                } else {
+                    errorEl.textContent = result.error || '登录失败';
+                }
+            } catch (error) {
+                errorEl.textContent = '网络错误，请稍后重试';
+            }
+        }
+
+        // 退出登录
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('username');
+            token = null;
+            render();
+        }
+
+        // 加载主面板
+        async function loadDashboard() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/billboards`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.status === 401) {
+                    logout();
+                    return;
+                }
+
+                const result = await response.json();
+                if (result.success) {
+                    document.getElementById('app').innerHTML = renderDashboard(result.data);
+                }
+            } catch (error) {
+                alert('加载失败：' + error.message);
+            }
+        }
+
+        // 创建告示牌 (v1.3.2: 支持副标题) [BUILD:20260304]
+        function showCreateModal() {
+            console.log('v1.3.2 - showCreateModal called');
+            const name = prompt('请输入告示牌名称：', '汇能长滩 煤矿内参');
+            console.log('name:', name);
+            if (name) {
+                console.log('准备弹出副标题输入框');
+                const subtitle = prompt('请输入副标题（可选）：', '实时更新 | 准确可靠');
+                console.log('subtitle:', subtitle);
+                createBillboard(name, subtitle || '实时更新 | 准确可靠');
+            }
+        }
+
+        async function createBillboard(name, subtitle) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/billboards`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ name, subtitle })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    alert('创建成功！');
+                    loadDashboard();
+                } else {
+                    alert('创建失败：' + result.error);
+                }
+            } catch (error) {
+                alert('网络错误：' + error.message);
+            }
+        }
+
+        // 改名 (v1.3.2: 支持编辑副标题) [BUILD:20260304]
+        function renameBillboard(id, oldName, oldSubtitle) {
+            console.log('v1.3.2 - renameBillboard called, id:', id, 'oldName:', oldName, 'oldSubtitle:', oldSubtitle);
+            const name = prompt('请输入新名称：', oldName);
+            console.log('new name:', name);
+            if (name) {
+                console.log('准备弹出副标题输入框');
+                const subtitle = prompt('请输入新副标题：', oldSubtitle || '实时更新 | 准确可靠');
+                console.log('new subtitle:', subtitle);
+                updateBillboardName(id, name, subtitle || '实时更新 | 准确可靠');
+            }
+        }
+
+        async function updateBillboardName(id, name, subtitle) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/billboards/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ name, subtitle })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    alert('修改成功！');
+                    loadDashboard();
+                } else {
+                    alert('修改失败：' + result.error);
+                }
+            } catch (error) {
+                alert('网络错误：' + error.message);
+            }
+        }
+
+        // 删除
+        function deleteBillboard(id, name) {
+            if (confirm(`确定要删除告示牌"${name}"吗？\\n\\n删除后所有数据将被清除，此操作不可恢复！`)) {
+                performDelete(id);
+            }
+        }
+
+        async function performDelete(id) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/billboards/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    alert('删除成功！');
+                    loadDashboard();
+                } else {
+                    alert('删除失败：' + result.error);
+                }
+            } catch (error) {
+                alert('网络错误：' + error.message);
+            }
+        }
+
+        // 编辑数据
+        function editBillboard(id) {
+            window.location.href = `editor.html?id=${id}`;
+        }
+
+        // 初始化
+        function render() {
+            if (!token) {
+                document.getElementById('app').innerHTML = renderLogin();
+                document.getElementById('loginForm').addEventListener('submit', handleLogin);
+            } else {
+                loadDashboard();
+            }
+        }
+
+        render();
+    </script>
+</body>
+</html>
