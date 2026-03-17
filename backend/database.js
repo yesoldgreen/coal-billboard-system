@@ -1,47 +1,58 @@
-const sqlite3 = require('sqlite3').verbose();
+const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
-const path = require('path');
 
-const dbPath = path.join(__dirname, 'billboard.db');
-const db = new sqlite3.Database(dbPath);
+// 创建MySQL连接池
+const pool = mysql.createPool({
+  host: process.env.MYSQL_HOST || 'localhost',
+  port: process.env.MYSQL_PORT || 3306,
+  user: process.env.MYSQL_USER || 'root',
+  password: process.env.MYSQL_PASSWORD || '',
+  database: process.env.MYSQL_DATABASE || 'coal_billboard',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+});
 
-// 创建一个同步包装器
+// 创建一个包装器以保持API兼容性
 const dbWrapper = {
   prepare: (sql) => {
     return {
-      run: (...params) => {
-        return new Promise((resolve, reject) => {
-          db.run(sql, params, function(err) {
-            if (err) reject(err);
-            else resolve({ lastInsertRowid: this.lastID, changes: this.changes });
-          });
-        });
+      run: async (...params) => {
+        const connection = await pool.getConnection();
+        try {
+          const [result] = await connection.execute(sql, params);
+          return { lastInsertRowid: result.insertId, changes: result.affectedRows };
+        } finally {
+          connection.release();
+        }
       },
-      get: (...params) => {
-        return new Promise((resolve, reject) => {
-          db.get(sql, params, (err, row) => {
-            if (err) reject(err);
-            else resolve(row);
-          });
-        });
+      get: async (...params) => {
+        const connection = await pool.getConnection();
+        try {
+          const [rows] = await connection.execute(sql, params);
+          return rows[0];
+        } finally {
+          connection.release();
+        }
       },
-      all: (...params) => {
-        return new Promise((resolve, reject) => {
-          db.all(sql, params, (err, rows) => {
-            if (err) reject(err);
-            else resolve(rows);
-          });
-        });
+      all: async (...params) => {
+        const connection = await pool.getConnection();
+        try {
+          const [rows] = await connection.execute(sql, params);
+          return rows;
+        } finally {
+          connection.release();
+        }
       }
     };
   },
-  exec: (sql) => {
-    return new Promise((resolve, reject) => {
-      db.exec(sql, (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
+  exec: async (sql) => {
+    const connection = await pool.getConnection();
+    try {
+      await connection.query(sql);
+    } finally {
+      connection.release();
+    }
   }
 };
 
@@ -51,31 +62,31 @@ async function initDatabase() {
     // 用户表
     await dbWrapper.exec(`
       CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        username VARCHAR(255) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
     // 告示牌表 - v1.3.1: 添加 subtitle 字段
     await dbWrapper.exec(`
       CREATE TABLE IF NOT EXISTS billboards (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        subtitle TEXT DEFAULT '实时更新 | 准确可靠',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        subtitle VARCHAR(255) DEFAULT '实时更新 | 准确可靠',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
     // v1.4.6.1: 检查并添加 subtitle 字段（兼容旧数据库）
     try {
-      const billboardInfo = await dbWrapper.prepare(`PRAGMA table_info(billboards)`).all();
-      const hasSubtitle = billboardInfo.some(col => col.name === 'subtitle');
+      const [billboardInfo] = await pool.query(`SHOW COLUMNS FROM billboards`);
+      const hasSubtitle = billboardInfo.some(col => col.Field === 'subtitle');
       if (!hasSubtitle) {
         console.log('检测到旧版本数据库，正在添加 subtitle 字段...');
-        await dbWrapper.exec(`ALTER TABLE billboards ADD COLUMN subtitle TEXT DEFAULT '实时更新 | 准确可靠'`);
+        await dbWrapper.exec(`ALTER TABLE billboards ADD COLUMN subtitle VARCHAR(255) DEFAULT '实时更新 | 准确可靠'`);
         console.log('subtitle 字段添加成功');
       }
     } catch (error) {
@@ -85,7 +96,7 @@ async function initDatabase() {
     // 排队拉运表 - v1.4.5: 添加 previous_queuing 字段用于颜色对比
     await dbWrapper.exec(`
       CREATE TABLE IF NOT EXISTS module_queue (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id INT AUTO_INCREMENT PRIMARY KEY,
         billboard_id INTEGER NOT NULL,
         pit_name TEXT NOT NULL,
         contracted TEXT,
@@ -101,11 +112,11 @@ async function initDatabase() {
 
     // v1.4.6.1: 检查并添加 previous_queuing 字段（兼容旧数据库）
     try {
-      const tableInfo = await dbWrapper.prepare(`PRAGMA table_info(module_queue)`).all();
-      const hasPreviousQueuing = tableInfo.some(col => col.name === 'previous_queuing');
+      const [tableInfo] = await pool.query(`SHOW COLUMNS FROM module_queue`);
+      const hasPreviousQueuing = tableInfo.some(col => col.Field === 'previous_queuing');
       if (!hasPreviousQueuing) {
         console.log('检测到旧版本数据库，正在添加 previous_queuing 字段...');
-        await dbWrapper.exec(`ALTER TABLE module_queue ADD COLUMN previous_queuing TEXT DEFAULT NULL`);
+        await dbWrapper.exec(`ALTER TABLE module_queue ADD COLUMN previous_queuing VARCHAR(255) DEFAULT NULL`);
         console.log('previous_queuing 字段添加成功');
       }
     } catch (error) {
@@ -115,7 +126,7 @@ async function initDatabase() {
     // 质量/价格表
     await dbWrapper.exec(`
       CREATE TABLE IF NOT EXISTS module_quality_price (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id INT AUTO_INCREMENT PRIMARY KEY,
         billboard_id INTEGER NOT NULL,
         pit_name TEXT NOT NULL,
         heat_value TEXT,
@@ -132,7 +143,7 @@ async function initDatabase() {
     // 物流费用表
     await dbWrapper.exec(`
       CREATE TABLE IF NOT EXISTS module_logistics (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id INT AUTO_INCREMENT PRIMARY KEY,
         billboard_id INTEGER NOT NULL,
         route_type TEXT NOT NULL,
         from_location TEXT,
@@ -149,9 +160,9 @@ async function initDatabase() {
 
     // v1.4.6.1: 检查并重命名 station_freight 为 station_loading_fee（兼容旧数据库）
     try {
-      const logisticsInfo = await dbWrapper.prepare(`PRAGMA table_info(module_logistics)`).all();
-      const hasStationFreight = logisticsInfo.some(col => col.name === 'station_freight');
-      const hasStationLoadingFee = logisticsInfo.some(col => col.name === 'station_loading_fee');
+      const [logisticsInfo] = await pool.query(`SHOW COLUMNS FROM module_logistics`);
+      const hasStationFreight = logisticsInfo.some(col => col.Field === 'station_freight');
+      const hasStationLoadingFee = logisticsInfo.some(col => col.Field === 'station_loading_fee');
 
       if (hasStationFreight && !hasStationLoadingFee) {
         console.log('检测到旧版本数据库，正在重命名 station_freight 为 station_loading_fee...');
@@ -160,7 +171,7 @@ async function initDatabase() {
           ALTER TABLE module_logistics RENAME TO module_logistics_old;
 
           CREATE TABLE module_logistics (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INT AUTO_INCREMENT PRIMARY KEY,
             billboard_id INTEGER NOT NULL,
             route_type TEXT NOT NULL,
             from_location TEXT,
@@ -189,7 +200,7 @@ async function initDatabase() {
     // 广告表
     await dbWrapper.exec(`
       CREATE TABLE IF NOT EXISTS advertisements (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id INT AUTO_INCREMENT PRIMARY KEY,
         billboard_id INTEGER NOT NULL,
         module_type TEXT NOT NULL,
         content TEXT NOT NULL,
@@ -202,7 +213,7 @@ async function initDatabase() {
     // 模块更新时间表 - v1.4.4: 添加 price_execution_time 字段
     await dbWrapper.exec(`
       CREATE TABLE IF NOT EXISTS module_update_times (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id INT AUTO_INCREMENT PRIMARY KEY,
         billboard_id INTEGER NOT NULL,
         module_type TEXT NOT NULL,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -214,8 +225,8 @@ async function initDatabase() {
 
     // v1.4.6.1: 检查并添加 price_execution_time 字段（兼容旧数据库）
     try {
-      const updateTimesInfo = await dbWrapper.prepare(`PRAGMA table_info(module_update_times)`).all();
-      const hasPriceExecutionTime = updateTimesInfo.some(col => col.name === 'price_execution_time');
+      const [updateTimesInfo] = await pool.query(`SHOW COLUMNS FROM module_update_times`);
+      const hasPriceExecutionTime = updateTimesInfo.some(col => col.Field === 'price_execution_time');
       if (!hasPriceExecutionTime) {
         console.log('检测到旧版本数据库，正在添加 price_execution_time 字段...');
         await dbWrapper.exec(`ALTER TABLE module_update_times ADD COLUMN price_execution_time TEXT DEFAULT NULL`);
@@ -228,7 +239,7 @@ async function initDatabase() {
     // v1.5: 自动填充映射表
     await dbWrapper.exec(`
       CREATE TABLE IF NOT EXISTS autofill_mappings (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id INT AUTO_INCREMENT PRIMARY KEY,
         billboard_id INTEGER NOT NULL,
         module_type TEXT NOT NULL,
         source_name TEXT NOT NULL,
