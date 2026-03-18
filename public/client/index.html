@@ -444,16 +444,24 @@
 
         const formatDateTime = (datetime) => {
             if (!datetime) return '';
-            let date;
-            if (datetime.includes('T') || datetime.includes('Z')) {
-                date = new Date(datetime);
-            } else if (datetime.includes('-') || datetime.includes('/')) {
-                date = new Date(datetime.replace(' ', 'T'));
-            } else {
-                date = new Date(datetime);
+            if (typeof datetime !== 'string') return '';
+            try {
+                let date;
+                // 处理 SQLite DATETIME 格式: 2024-01-01 12:00:00
+                // 处理 ISO 格式: 2024-01-01T12:00:00.000Z
+                if (datetime.includes('T')) {
+                    date = new Date(datetime);
+                } else if (datetime.includes('-') && datetime.includes(':')) {
+                    // 尝试替换空格为T
+                    date = new Date(datetime.replace(' ', 'T'));
+                } else {
+                    date = new Date(datetime);
+                }
+                if (!date || isNaN(date.getTime())) return '';
+                return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+            } catch (e) {
+                return '';
             }
-            if (isNaN(date.getTime())) return datetime;
-            return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
         };
 
         const renderAds = (ads) => {
