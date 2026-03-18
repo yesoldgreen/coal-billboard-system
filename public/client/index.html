@@ -444,8 +444,18 @@
 
         const formatDateTime = (datetime) => {
             if (!datetime) return '';
-            // SQLite返回的是UTC时间，需要加'Z'标识，然后Date会自动转换为本地时区
-            const date = new Date(datetime + (datetime.includes('Z') ? '' : 'Z'));
+            let date;
+            // MySQL返回的是本地时间格式(2024-01-01 12:00:00)，需要正确解析
+            if (datetime.includes('T')) {
+                // ISO格式
+                date = new Date(datetime + (datetime.includes('Z') ? '' : 'Z'));
+            } else if (datetime.includes('-') || datetime.includes('/')) {
+                // MySQL格式 2024-01-01 12:00:00
+                date = new Date(datetime.replace(' ', 'T'));
+            } else {
+                date = new Date(datetime);
+            }
+            if (isNaN(date.getTime())) return datetime; // 如果解析失败，返回原始值
             return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
         };
 
