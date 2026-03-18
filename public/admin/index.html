@@ -437,11 +437,15 @@
         // 复制客户端链接
         function copyClientUrl(id) {
             const url = `${window.location.origin}/client/index.html?id=${id}`;
-            navigator.clipboard.writeText(url).then(() => {
-                alert('客户端链接已复制到剪贴板！\\n\\n' + url);
-            }).catch(() => {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(url).then(() => {
+                    alert('客户端链接已复制到剪贴板！\\n\\n' + url);
+                }).catch(() => {
+                    prompt('请复制以下链接：', url);
+                });
+            } else {
                 prompt('请复制以下链接：', url);
-            });
+            }
         }
 
         // 登录
