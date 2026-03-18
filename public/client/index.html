@@ -444,8 +444,15 @@
 
         const formatDateTime = (datetime) => {
             if (!datetime) return '';
-            // SQLite返回的是UTC时间，需要加'Z'标识，然后Date会自动转换为本地时区
-            const date = new Date(datetime + (datetime.includes('Z') ? '' : 'Z'));
+            let date;
+            if (datetime.includes('T') || datetime.includes('Z')) {
+                date = new Date(datetime);
+            } else if (datetime.includes('-') || datetime.includes('/')) {
+                date = new Date(datetime.replace(' ', 'T'));
+            } else {
+                date = new Date(datetime);
+            }
+            if (isNaN(date.getTime())) return datetime;
             return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
         };
 
