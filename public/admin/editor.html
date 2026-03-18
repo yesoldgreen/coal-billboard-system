@@ -1127,7 +1127,12 @@
 
         // 删除配置行（首次配置时使用）
         function removeConfigRow(index) {
-            const row = document.querySelector(`#displayName_${index}`).closest('tr');
+            const input = document.querySelector(`#displayName_${index}`);
+            if (!input) {
+                console.error('找不到元素 #displayName_' + index);
+                return;
+            }
+            const row = input.closest('tr');
             if (row) row.remove();
         }
 
