@@ -447,13 +447,20 @@
             if (typeof datetime !== 'string') return '';
             try {
                 let date;
-                // 处理 SQLite DATETIME 格式: 2024-01-01 12:00:00
-                // 处理 ISO 格式: 2024-01-01T12:00:00.000Z
-                if (datetime.includes('T')) {
+                // SQLite DATETIME 格式: 2024-01-01 12:00:00 (本地时间，无时区)
+                // ISO 格式: 2024-01-01T12:00:00.000Z (UTC时间)
+                if (datetime.includes('T') && datetime.endsWith('Z')) {
+                    // 纯ISO格式，带Z表示UTC
+                    date = new Date(datetime);
+                } else if (datetime.includes('T')) {
+                    // ISO格式但没有Z，当作本地时间
                     date = new Date(datetime);
                 } else if (datetime.includes('-') && datetime.includes(':')) {
-                    // 尝试替换空格为T
-                    date = new Date(datetime.replace(' ', 'T'));
+                    // SQLite DATETIME 格式，当作本地时间处理
+                    const [datePart, timePart] = datetime.split(' ');
+                    const [year, month, day] = datePart.split('-');
+                    const [hour, minute, second] = timePart.split(':');
+                    date = new Date(year, month - 1, day, hour, minute, second);
                 } else {
                     date = new Date(datetime);
                 }
