@@ -54,7 +54,7 @@ async function initDatabase() {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at DATETIME DEFAULT datetime('now', 'localtime')
       )
     `);
 
@@ -64,8 +64,8 @@ async function initDatabase() {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         subtitle TEXT DEFAULT '实时更新 | 准确可靠',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at DATETIME DEFAULT datetime('now', 'localtime'),
+        updated_at DATETIME DEFAULT datetime('now', 'localtime')
       )
     `);
 
@@ -94,7 +94,7 @@ async function initDatabase() {
         entered TEXT,
         sort_order INTEGER DEFAULT 0,
         previous_queuing TEXT DEFAULT NULL,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT datetime('now', 'localtime'),
         FOREIGN KEY (billboard_id) REFERENCES billboards(id) ON DELETE CASCADE
       )
     `);
@@ -124,7 +124,7 @@ async function initDatabase() {
         price TEXT,
         change_value TEXT,
         sort_order INTEGER DEFAULT 0,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT datetime('now', 'localtime'),
         FOREIGN KEY (billboard_id) REFERENCES billboards(id) ON DELETE CASCADE
       )
     `);
@@ -142,7 +142,7 @@ async function initDatabase() {
         station_loading_fee TEXT,
         station_fee TEXT,
         sort_order INTEGER DEFAULT 0,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT datetime('now', 'localtime'),
         FOREIGN KEY (billboard_id) REFERENCES billboards(id) ON DELETE CASCADE
       )
     `);
@@ -170,7 +170,7 @@ async function initDatabase() {
             station_loading_fee TEXT,
             station_fee TEXT,
             sort_order INTEGER DEFAULT 0,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT datetime('now', 'localtime'),
             FOREIGN KEY (billboard_id) REFERENCES billboards(id) ON DELETE CASCADE
           );
 
@@ -194,7 +194,7 @@ async function initDatabase() {
         module_type TEXT NOT NULL,
         content TEXT NOT NULL,
         sort_order INTEGER DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_at DATETIME DEFAULT datetime('now', 'localtime'),
         FOREIGN KEY (billboard_id) REFERENCES billboards(id) ON DELETE CASCADE
       )
     `);
@@ -205,7 +205,7 @@ async function initDatabase() {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         billboard_id INTEGER NOT NULL,
         module_type TEXT NOT NULL,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT datetime('now', 'localtime'),
         price_execution_time TEXT DEFAULT NULL,
         UNIQUE(billboard_id, module_type),
         FOREIGN KEY (billboard_id) REFERENCES billboards(id) ON DELETE CASCADE
@@ -233,7 +233,7 @@ async function initDatabase() {
         module_type TEXT NOT NULL,
         source_name TEXT NOT NULL,
         display_name TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_at DATETIME DEFAULT datetime('now', 'localtime'),
         UNIQUE(billboard_id, module_type, source_name),
         FOREIGN KEY (billboard_id) REFERENCES billboards(id) ON DELETE CASCADE
       )
