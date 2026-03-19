@@ -10,6 +10,18 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const SECRET_KEY = 'coal-billboard-secret-key-2026';
 
+// 获取本地时间字符串
+function getLocalDateTime() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
 app.use(cors());
 app.use(bodyParser.json());
 
@@ -104,7 +116,7 @@ app.put('/api/billboards/:id', authenticateToken, async (req, res) => {
     }
 
     const subtitleValue = subtitle !== undefined ? subtitle : '实时更新 | 准确可靠';
-    await db.prepare('UPDATE billboards SET name = ?, subtitle = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(name, subtitleValue, id);
+    await db.prepare('UPDATE billboards SET name = ?, subtitle = ?, updated_at = ? WHERE id = ?').run(name, subtitleValue, getLocalDateTime(), id);
 
     res.json({ success: true });
   } catch (error) {
@@ -187,11 +199,12 @@ app.put('/api/billboards/:id/queue', authenticateToken, async (req, res) => {
     }
 
     // 更新模块更新时间
+    const now = getLocalDateTime();
     await db.exec(`
       INSERT INTO module_update_times (billboard_id, module_type, updated_at)
-      VALUES (${id}, 'queue', CURRENT_TIMESTAMP)
+      VALUES (${id}, 'queue', '${now}')
       ON CONFLICT(billboard_id, module_type)
-      DO UPDATE SET updated_at = CURRENT_TIMESTAMP
+      DO UPDATE SET updated_at = '${now}'
     `);
 
     res.json({ success: true });
@@ -217,11 +230,12 @@ app.put('/api/billboards/:id/quality', authenticateToken, async (req, res) => {
 
     // v1.4.4: 更新模块更新时间和价格执行时间
     const executionTimeValue = priceExecutionTime || null;
+    const now = getLocalDateTime();
     await db.exec(`
       INSERT INTO module_update_times (billboard_id, module_type, updated_at, price_execution_time)
-      VALUES (${id}, 'quality', CURRENT_TIMESTAMP, ${executionTimeValue ? `'${executionTimeValue.replace(/'/g, "''")}'` : 'NULL'})
+      VALUES (${id}, 'quality', '${now}', ${executionTimeValue ? `'${executionTimeValue.replace(/'/g, "''")}'` : 'NULL'})
       ON CONFLICT(billboard_id, module_type)
-      DO UPDATE SET updated_at = CURRENT_TIMESTAMP, price_execution_time = ${executionTimeValue ? `'${executionTimeValue.replace(/'/g, "''")}'` : 'NULL'}
+      DO UPDATE SET updated_at = '${now}', price_execution_time = ${executionTimeValue ? `'${executionTimeValue.replace(/'/g, "''")}'` : 'NULL'}
     `);
 
     res.json({ success: true });
@@ -246,11 +260,12 @@ app.put('/api/billboards/:id/logistics', authenticateToken, async (req, res) => 
     }
 
     // 更新模块更新时间
+    const now = getLocalDateTime();
     await db.exec(`
       INSERT INTO module_update_times (billboard_id, module_type, updated_at)
-      VALUES (${id}, 'logistics', CURRENT_TIMESTAMP)
+      VALUES (${id}, 'logistics', '${now}')
       ON CONFLICT(billboard_id, module_type)
-      DO UPDATE SET updated_at = CURRENT_TIMESTAMP
+      DO UPDATE SET updated_at = '${now}'
     `);
 
     res.json({ success: true });
