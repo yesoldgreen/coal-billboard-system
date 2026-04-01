@@ -23,13 +23,13 @@
 
 ### 方案1: 原3000端口 (已有)
 ```
-后台管理: https://3000-capy-1772251385994-336037-preview.happycapy.ai/admin/index.html
+后台管理: https://3000-capy-1772251385994-336037-preview.happycapy.ai/admin/
 客户端展示: https://3000-capy-1772251385994-336037-preview.happycapy.ai/client/index.html?id=1
 ```
 
 ### 方案2: 新8080端口 (备用) ⭐ 推荐先试这个
 ```
-后台管理: https://8080-capy-1772251385994-517307-preview.happycapy.ai/admin/index.html
+后台管理: https://8080-capy-1772251385994-517307-preview.happycapy.ai/admin/
 客户端展示: https://8080-capy-1772251385994-517307-preview.happycapy.ai/client/index.html?id=1
 ```
 

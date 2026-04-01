@@ -239,6 +239,24 @@ async function initDatabase() {
       )
     `);
 
+    // v1.7: 机器人入站日志表
+    await dbWrapper.exec(`
+      CREATE TABLE IF NOT EXISTS inbound_message_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        source TEXT NOT NULL DEFAULT 'wechat-bot',
+        billboard_id INTEGER,
+        module_type TEXT,
+        format_code TEXT,
+        content_type TEXT,
+        client_ip TEXT,
+        raw_text TEXT NOT NULL,
+        status TEXT NOT NULL,
+        result_summary TEXT,
+        error_message TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // 初始化默认用户
     const userExists = await dbWrapper.prepare('SELECT id FROM users WHERE username = ?').get('hulianshikong');
     if (!userExists) {

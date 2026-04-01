@@ -21,7 +21,7 @@ chmod +x install.sh
 ./install.sh
 ```
 
-### 步骤2: 启动所有服务（约1分钟）
+### 步骤2: 启动服务（约1分钟）
 
 ```bash
 ./start-all.sh
@@ -29,12 +29,12 @@ chmod +x install.sh
 
 服务启动后，你会看到：
 - 后端服务: http://localhost:3000
-- 后台管理: http://localhost:3001
-- 客户端: http://localhost:3002
+- 后台管理: http://localhost:3000/admin/
+- 客户端: http://localhost:3000/client/index.html?id=1
 
 ### 步骤3: 登录后台管理（30秒）
 
-1. 打开浏览器访问 http://localhost:3001
+1. 打开浏览器访问 http://localhost:3000/admin/
 2. 输入登录信息：
    - 用户名: `hulianshikong`
    - 密码: `hlsk2026`
@@ -138,7 +138,7 @@ chmod +x install.sh
 ### 查看客户端
 
 1. 在告示牌列表中点击"复制链接"
-2. 链接格式：`http://localhost:3002/billboard/{告示牌ID}`
+2. 链接格式：`http://localhost:3000/client/index.html?id={告示牌ID}`
 3. 访问链接即可查看告示牌
 4. 数据会每30秒自动刷新
 5. 可以分享链接给其他用户
@@ -160,7 +160,7 @@ chmod +x install.sh
 A: 执行 `./stop-all.sh` 或手动 kill 进程
 
 ### Q: 如何修改端口？
-A: 编辑各服务目录下的 `.env` 文件
+A: 修改后端启动端口，或使用环境变量 `PORT` 启动 `backend/server.js`
 
 ### Q: 数据存储在哪里？
 A: SQLite 数据库文件位于 `backend/billboard.db`

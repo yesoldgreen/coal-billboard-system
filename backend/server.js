@@ -5,10 +5,12 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('./database');
 const path = require('path');
+const { applyInboundAutofill } = require('./autofill');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const SECRET_KEY = 'coal-billboard-secret-key-2026';
+const ROBOT_API_TOKEN = process.env.ROBOT_API_TOKEN || 'hlsk-robot-token-2026';
 
 // 获取本地时间字符串
 function getLocalDateTime() {
@@ -23,7 +25,8 @@ function getLocalDateTime() {
 }
 
 app.use(cors());
-app.use(bodyParser.json());
+app.use(bodyParser.json({ limit: '1mb' }));
+app.use(bodyParser.text({ type: ['text/plain'], limit: '1mb' }));
 
 // 提供静态文件服务
 app.use('/client', express.static(path.join(__dirname, '../public/client')));
@@ -46,6 +49,68 @@ const authenticateToken = (req, res, next) => {
     next();
   });
 };
+
+const authenticateRobotToken = (req, res, next) => {
+  const authHeader = req.headers.authorization || '';
+  const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+  const apiToken = req.headers['x-api-token'] || bearerToken;
+
+  if (!apiToken) {
+    return res.status(401).json({ success: false, error: '缺少机器人访问令牌' });
+  }
+
+  if (apiToken !== ROBOT_API_TOKEN) {
+    return res.status(403).json({ success: false, error: '机器人访问令牌无效' });
+  }
+
+  next();
+};
+
+function getRequestClientIp(req) {
+  const forwardedFor = req.headers['x-forwarded-for'];
+  if (forwardedFor) {
+    return String(forwardedFor).split(',')[0].trim();
+  }
+  return req.socket?.remoteAddress || '';
+}
+
+function getInboundRequestData(req) {
+  const headers = req.headers;
+  const body = req.body;
+  const rawText = typeof body === 'string' ? body.trim() : String(body?.raw_text || '').trim();
+  const billboardIdValue = headers['x-billboard-id'] || body?.billboard_id;
+  const moduleType = String(headers['x-module-type'] || body?.module_type || '').trim();
+  const formatCode = String(headers['x-format-code'] || body?.format_code || '').trim();
+
+  return {
+    billboardId: Number(billboardIdValue),
+    moduleType,
+    formatCode,
+    rawText,
+    contentType: String(headers['content-type'] || '')
+  };
+}
+
+async function writeInboundLog(payload) {
+  const result = await db.prepare(`
+    INSERT INTO inbound_message_logs
+      (source, billboard_id, module_type, format_code, content_type, client_ip, raw_text, status, result_summary, error_message)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    payload.source || 'wechat-bot',
+    payload.billboard_id || null,
+    payload.module_type || null,
+    payload.format_code || null,
+    payload.content_type || null,
+    payload.client_ip || null,
+    payload.raw_text || '',
+    payload.status,
+    payload.result_summary || null,
+    payload.error_message || null
+  );
+
+  return result.lastInsertRowid;
+}
 
 // ==================== 认证接口 ====================
 
@@ -384,6 +449,140 @@ app.delete('/api/billboards/:id/autofill-mappings', authenticateToken, async (re
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// ==================== 机器人入站接口（v1.7） ====================
+
+app.post('/api/inbound/autofill', authenticateRobotToken, async (req, res) => {
+  const requestData = getInboundRequestData(req);
+  const clientIp = getRequestClientIp(req);
+
+  try {
+    const { billboardId, moduleType, formatCode, rawText, contentType } = requestData;
+
+    if (!Number.isInteger(billboardId) || billboardId <= 0) {
+      await writeInboundLog({
+        billboard_id: Number.isFinite(billboardId) ? billboardId : null,
+        module_type: moduleType || null,
+        format_code: formatCode || null,
+        content_type: contentType,
+        client_ip: clientIp,
+        raw_text: rawText || '',
+        status: 'invalid_target',
+        error_message: 'billboard_id 无效'
+      });
+      return res.status(400).json({ success: false, status: 'invalid_target', error: 'billboard_id 无效' });
+    }
+
+    if (!['queue', 'quality'].includes(moduleType)) {
+      await writeInboundLog({
+        billboard_id: billboardId,
+        module_type: moduleType || null,
+        format_code: formatCode || null,
+        content_type: contentType,
+        client_ip: clientIp,
+        raw_text: rawText || '',
+        status: 'unsupported_module',
+        error_message: 'module_type 仅支持 queue 或 quality'
+      });
+      return res.status(400).json({ success: false, status: 'unsupported_module', error: 'module_type 仅支持 queue 或 quality' });
+    }
+
+    if (!formatCode) {
+      await writeInboundLog({
+        billboard_id: billboardId,
+        module_type: moduleType,
+        format_code: null,
+        content_type: contentType,
+        client_ip: clientIp,
+        raw_text: rawText || '',
+        status: 'missing_format_code',
+        error_message: '缺少 format_code'
+      });
+      return res.status(400).json({ success: false, status: 'missing_format_code', error: '缺少 format_code' });
+    }
+
+    if (!rawText) {
+      await writeInboundLog({
+        billboard_id: billboardId,
+        module_type: moduleType,
+        format_code: formatCode,
+        content_type: contentType,
+        client_ip: clientIp,
+        raw_text: '',
+        status: 'empty_payload',
+        error_message: 'raw_text 不能为空'
+      });
+      return res.status(400).json({ success: false, status: 'empty_payload', error: 'raw_text 不能为空' });
+    }
+
+    const billboard = await db.prepare('SELECT id, name FROM billboards WHERE id = ?').get(billboardId);
+    if (!billboard) {
+      await writeInboundLog({
+        billboard_id: billboardId,
+        module_type: moduleType,
+        format_code: formatCode,
+        content_type: contentType,
+        client_ip: clientIp,
+        raw_text: rawText,
+        status: 'billboard_not_found',
+        error_message: '目标告示牌不存在'
+      });
+      return res.status(404).json({ success: false, status: 'billboard_not_found', error: '目标告示牌不存在' });
+    }
+
+    const result = await applyInboundAutofill(db, billboardId, moduleType, formatCode, rawText);
+    const summary = JSON.stringify({
+      updatedCount: result.updatedCount || 0,
+      unmapped: result.unmapped || [],
+      missingRows: result.missingRows || [],
+      priceExecutionTime: result.priceExecutionTime || null
+    });
+
+    const logId = await writeInboundLog({
+      billboard_id: billboardId,
+      module_type: moduleType,
+      format_code: formatCode,
+      content_type: contentType,
+      client_ip: clientIp,
+      raw_text: rawText,
+      status: 'applied',
+      result_summary: summary
+    });
+
+    res.json({
+      success: true,
+      status: 'applied',
+      log_id: logId,
+      billboard_id: billboardId,
+      billboard_name: billboard.name,
+      module_type: moduleType,
+      format_code: formatCode,
+      updated_count: result.updatedCount || 0,
+      unmapped_sources: result.unmapped || [],
+      missing_rows: result.missingRows || [],
+      price_execution_time: result.priceExecutionTime || null
+    });
+  } catch (error) {
+    const status = error.message.includes('格式') ? 'unsupported_format' : 'parse_or_apply_failed';
+    const logId = await writeInboundLog({
+      billboard_id: Number.isInteger(requestData.billboardId) ? requestData.billboardId : null,
+      module_type: requestData.moduleType || null,
+      format_code: requestData.formatCode || null,
+      content_type: requestData.contentType || null,
+      client_ip: clientIp,
+      raw_text: requestData.rawText || '',
+      status,
+      error_message: error.message
+    });
+
+    res.status(status === 'unsupported_format' ? 400 : 500).json({
+      success: false,
+      status,
+      log_id: logId,
+      error: error.message
+    });
   }
 });
 

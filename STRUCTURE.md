@@ -9,45 +9,17 @@ coal-billboard-system/
 │   ├── package.json                 # 后端依赖配置
 │   └── billboard.db                 # SQLite数据库文件（运行后生成）
 │
-├── admin-frontend/                   # 后台管理系统
-│   ├── public/                      # 公共资源
-│   │   └── index.html              # HTML模板
-│   ├── src/                         # 源代码
-│   │   ├── components/             # React组件
-│   │   │   ├── BillboardList.js   # 告示牌列表组件
-│   │   │   ├── BillboardEditor.js # 告示牌编辑器
-│   │   │   ├── QueueEditor.js     # 排队拉运编辑器
-│   │   │   ├── QualityEditor.js   # 质量/价格编辑器
-│   │   │   └── LogisticsEditor.js # 物流费用编辑器
-│   │   ├── pages/                  # 页面组件
-│   │   │   ├── Login.js           # 登录页面
-│   │   │   ├── Login.css          # 登录页面样式
-│   │   │   ├── Dashboard.js       # 主控制台
-│   │   │   └── Dashboard.css      # 主控制台样式
-│   │   ├── App.js                  # 应用根组件
-│   │   ├── api.js                  # API接口封装
-│   │   ├── index.js                # 入口文件
-│   │   └── index.css               # 全局样式
-│   ├── .env                         # 环境变量配置
-│   └── package.json                 # 前端依赖配置
-│
-├── client-frontend/                  # 客户端展示系统
-│   ├── public/                      # 公共资源
-│   │   └── index.html              # HTML模板
-│   ├── src/                         # 源代码
-│   │   ├── pages/                  # 页面组件
-│   │   │   ├── Billboard.js       # 告示牌展示页面
-│   │   │   └── Billboard.css      # 告示牌样式
-│   │   ├── App.js                  # 应用根组件
-│   │   ├── index.js                # 入口文件
-│   │   └── index.css               # 全局样式
-│   ├── .env                         # 环境变量配置
-│   └── package.json                 # 前端依赖配置
+├── public/
+│   ├── admin/                       # 后台管理静态页面
+│   │   ├── index.html              # 后台首页
+│   │   ├── editor.html             # 数据编辑页
+│   │   └── editor-v1.0-backup.html # 历史备份
+│   └── client/                      # 客户端展示静态页面
+│       ├── index.html              # 客户端页面
+│       └── index-*.html            # 历史备份
 │
 ├── logs/                             # 日志目录（运行后生成）
-│   ├── backend.log                  # 后端日志
-│   ├── admin.log                    # 后台管理日志
-│   └── client.log                   # 客户端日志
+│   └── backend.log                  # 后端日志
 │
 ├── README.md                         # 项目说明文档
 ├── QUICKSTART.md                     # 快速入门指南
@@ -83,58 +55,37 @@ coal-billboard-system/
 - 数据管理: `/api/billboards/:id/{queue,quality,logistics,ads}`
 - 客户端: `/api/client/billboards/:id`
 
-### admin-frontend/ - 后台管理系统
+### public/admin/ - 后台管理系统
 
-后台管理使用 React + Ant Design 构建。
+后台管理由后端直接托管的静态页面组成。
 
-**组件说明**:
-- `Login.js`: 登录页面，使用 Ant Design 表单组件
-- `Dashboard.js`: 主控制台，包含侧边栏导航和路由
-- `BillboardList.js`: 告示牌列表，支持创建、修改、删除、复制链接
-- `BillboardEditor.js`: 告示牌编辑器，使用Tab切换不同模块
-- `QueueEditor.js`: 排队拉运数据编辑器，表格形式录入
-- `QualityEditor.js`: 质量/价格数据编辑器，表格形式录入
-- `LogisticsEditor.js`: 物流费用数据编辑器，支持直运和集运站
+**页面说明**:
+- `index.html`: 登录、告示牌列表、创建/改名/删除入口
+- `editor.html`: 三个模块的数据编辑页
 
-**路由结构**:
-- `/login` - 登录页面
-- `/` - 告示牌列表
-- `/billboard/:id` - 告示牌编辑页面
+### public/client/ - 客户端展示系统
 
-### client-frontend/ - 客户端展示系统
+客户端由后端直接托管的静态页面组成。
 
-客户端使用 React + 自定义CSS 构建，完全还原设计图样式。
-
-**组件说明**:
-- `Billboard.js`: 告示牌展示页面
+**页面说明**:
+- `index.html`: 告示牌展示页面
   - 自动轮询数据（30秒）
   - 响应式设计
   - 显示更新时间
   - 支持广告展示
 
-**页面结构**:
-- 顶栏：Logo + 告示牌标题
-- 模块1：排队拉运（蓝色主题）
-- 模块2：质量/价格（绿色主题）
-- 模块3：物流费用（橙色主题）
-- 底栏：联系方式 + 二维码（灰色主题）
-
-**路由结构**:
-- `/billboard/:id` - 告示牌展示页面
-- `/` - 默认提示页面
-
 ## 数据流向
 
 ```
-用户操作后台管理
+用户打开 /admin/
     ↓
-后台管理发送API请求
+后台静态页面发送 API 请求
     ↓
 后端服务处理请求
     ↓
-更新SQLite数据库
+更新 SQLite 数据库
     ↓
-客户端定时轮询API
+客户端静态页面定时轮询 API
     ↓
 获取最新数据
     ↓
@@ -151,33 +102,25 @@ coal-billboard-system/
 - **jsonwebtoken**: JWT认证
 - **cors**: 跨域支持
 
-### 前端（后台管理）
-- **React 18**: UI框架
-- **React Router**: 路由管理
-- **Ant Design 5**: UI组件库
-- **Axios**: HTTP客户端
-
-### 前端（客户端）
-- **React 18**: UI框架
-- **React Router**: 路由管理
-- **Axios**: HTTP客户端
-- **自定义CSS**: 样式实现
+### 前端（后台管理与客户端）
+- **原生 HTML**: 页面结构
+- **原生 CSS**: 界面样式
+- **原生 JavaScript**: 交互逻辑和 API 调用
 
 ## 开发规范
 
 ### 代码组织
-- 组件采用函数式组件 + Hooks
-- API调用统一在 `api.js` 中封装
-- 样式文件与组件文件同名
+- 静态页面按后台端和客户端拆分
+- API 调用直接在页面脚本中发起
+- 页面与样式内聚在对应 HTML 文件
 
 ### 命名规范
-- 组件文件: PascalCase (如 `BillboardList.js`)
 - 普通文件: camelCase (如 `database.js`)
 - CSS类名: kebab-case (如 `.billboard-container`)
 
 ### 状态管理
-- 使用 React Hooks (useState, useEffect)
-- 局部状态管理，无全局状态库
+- 页面内局部状态
+- 通过浏览器 `localStorage` 保存登录态
 
 ### API设计
 - RESTful风格
@@ -189,12 +132,12 @@ coal-billboard-system/
 ### 添加新模块
 1. 在数据库中添加新表（`database.js`）
 2. 在后端添加API端点（`server.js`）
-3. 在后台管理添加编辑器组件
-4. 在客户端添加展示组件
+3. 在 `public/admin` 中补充管理页面逻辑
+4. 在 `public/client` 中补充展示页面逻辑
 
 ### 自定义样式
-- 修改 `client-frontend/src/pages/Billboard.css`
-- 调整颜色、字体、布局等
+- 修改 `public/admin/index.html`、`public/admin/editor.html`
+- 修改 `public/client/index.html`
 
 ### 添加新功能
 - 用户权限管理

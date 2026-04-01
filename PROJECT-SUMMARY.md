@@ -35,7 +35,7 @@
 
 ```
 ┌─────────────────┐
-│   后台管理系统   │  (React + Ant Design, Port 3001)
+│ 后台管理静态页面  │  (/admin/)
 │   Admin Panel   │
 └────────┬────────┘
          │
@@ -51,12 +51,12 @@
 ┌────────▼────────┐
 │   数据库        │  (SQLite)
 │   Database      │
-└─────────────────┘
+└────────┬────────┘
          │
          │ HTTP/REST API
          │
 ┌────────▼────────┐
-│  客户端展示      │  (React + Custom CSS, Port 3002)
+│ 客户端静态页面   │  (/client/index.html?id=1)
 │  Client View    │
 └─────────────────┘
 ```
@@ -118,8 +118,8 @@ node create-demo-data.js
 ./start-all.sh
 
 # 4. 访问系统
-# 后台: http://localhost:3001
-# 客户端: http://localhost:3002/billboard/1
+# 后台: http://localhost:3000/admin/
+# 客户端: http://localhost:3000/client/index.html?id=1
 ```
 
 ## 登录信息

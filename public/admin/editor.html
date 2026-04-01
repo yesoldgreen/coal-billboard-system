@@ -310,6 +310,21 @@
 
             <!-- 质量/价格 -->
             <div id="quality" class="tab-content">
+                <div class="autofill-section">
+                    <div class="autofill-header" onclick="toggleQualityAutofill()">
+                        <div id="qualityAutofillTitle" class="autofill-title">🔽 自动填充</div>
+                        <button class="btn btn-primary" style="font-size: 13px; padding: 5px 12px;" onclick="event.stopPropagation(); manageQualityMappings()">管理映射</button>
+                    </div>
+                    <div id="qualityAutofillContent" class="autofill-content">
+                        <div class="autofill-hint">支持多种价格通知文本格式，当前已兼容：2001 段建国 汇能长滩城塔价格模板、2002 官方 白家海子价格模板</div>
+                        <textarea id="qualityAutofillText" class="autofill-textarea" placeholder="@所有人 经总经理办公会议研究决定，汇能长滩露天煤矿从2026年3月18日19点起(以空车过磅时间为准)价格执行如下：&#10;1、汇能6号原煤执行455元/吨。（↑5元/吨）&#10;..."></textarea>
+                        <div class="autofill-actions">
+                            <button class="btn btn-success" onclick="recognizeQualityAutofill()">识别并填充</button>
+                            <span id="qualityAutofillMessage" class="autofill-message"></span>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="section-title">📊 质量/价格数据</div>
                 <table class="data-table" id="qualityTable">
                     <thead>
@@ -448,6 +463,8 @@
                     const qualityUpdateInfo = updateTimes.find(item => item.module_type === 'quality');
                     if (qualityUpdateInfo && qualityUpdateInfo.price_execution_time) {
                         document.getElementById('priceExecutionTime').value = qualityUpdateInfo.price_execution_time;
+                    } else {
+                        document.getElementById('priceExecutionTime').value = '';
                     }
 
                     renderQueue();
@@ -457,6 +474,102 @@
             } catch (error) {
                 showMessage('加载数据失败: ' + error.message, 'error');
             }
+        }
+
+        function setAutofillMessage(elementId, text, color = '#52c41a', isHtml = false) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            if (isHtml) {
+                el.innerHTML = text;
+            } else {
+                el.textContent = text;
+            }
+            el.style.color = color;
+        }
+
+        function normalizeQualitySourceName(name) {
+            return (name || '').replace(/^汇能/, '').trim();
+        }
+
+        function normalizeQualityAutofillText(text) {
+            return (text || '')
+                .replace(/\u00a0/g, ' ')
+                .replace(/\r/g, '\n')
+                .replace(/（/g, '(')
+                .replace(/）/g, ')')
+                .replace(/：/g, ':')
+                .replace(/；/g, ';')
+                .replace(/(\d)\s*\n\s*(元\/吨)/g, '$1$2')
+                .replace(/执行\s*\n\s*(\d+)/g, '执行$1')
+                .replace(/[ \t]+/g, ' ')
+                .replace(/\n{2,}/g, '\n')
+                .trim();
+        }
+
+        function extractQualityExecutionTime(text) {
+            const compactText = text.replace(/\n/g, ' ');
+            const match = compactText.match(/[自从]\s*([\s\S]{0,80}?起(?:\([^)]*\))?)(?=(?:价格执行如下|各煤种含税价格调整如下|，各煤种含税价格调整如下|,各煤种含税价格调整如下|。|:))/);
+            return match ? match[1].trim() : '';
+        }
+
+        function parseQualityPriceNoticeTemplate(text) {
+            const compactText = text.replace(/\n/g, ' ');
+            const regex = /\d+[、.]\s*([^。；;]*?)执行\s*(\d+)\s*元\/吨(?:[。；;]?\s*\(\s*([↑↓+\-])\s*(\d+)\s*元\/吨\s*\))?/g;
+            const items = [];
+            let match;
+
+            while ((match = regex.exec(compactText)) !== null) {
+                const rawName = match[1].trim();
+                const sourceName = normalizeQualitySourceName(rawName);
+                const price = match[2].trim();
+                const direction = match[3] || '';
+                const deltaValue = match[4] || '';
+                const changeValue = deltaValue
+                    ? `${direction === '↓' ? '-' : '+'}${deltaValue}`
+                    : '0';
+
+                if (!sourceName || !price) continue;
+
+                items.push({
+                    source_name: sourceName,
+                    raw_name: rawName,
+                    price: price,
+                    change_value: changeValue
+                });
+            }
+
+            return {
+                priceExecutionTime: extractQualityExecutionTime(text),
+                items
+            };
+        }
+
+        const qualityAutofillParsers = [
+            parseQualityPriceNoticeTemplate
+        ];
+
+        function parseQualityAutofillText(text) {
+            const normalizedText = normalizeQualityAutofillText(text);
+            const mergedItems = [];
+            let priceExecutionTime = '';
+
+            qualityAutofillParsers.forEach(parser => {
+                const result = parser(normalizedText);
+                if (result.priceExecutionTime && !priceExecutionTime) {
+                    priceExecutionTime = result.priceExecutionTime;
+                }
+
+                result.items.forEach(item => {
+                    if (!mergedItems.find(existing => existing.source_name === item.source_name)) {
+                        mergedItems.push(item);
+                    }
+                });
+            });
+
+            return {
+                priceExecutionTime,
+                items: mergedItems
+            };
         }
 
         // 排队拉运
@@ -1136,7 +1249,405 @@
             if (row) row.remove();
         }
 
-        // ==================== 结束 v1.5 ====================
+        // ==================== v1.6: 质量/价格自动填充 ====================
+
+        function toggleQualityAutofill() {
+            const content = document.getElementById('qualityAutofillContent');
+            content.classList.toggle('autofill-collapsed');
+            const title = document.getElementById('qualityAutofillTitle');
+            title.textContent = content.classList.contains('autofill-collapsed') ? '▶️ 自动填充' : '🔽 自动填充';
+        }
+
+        async function recognizeQualityAutofill() {
+            const text = document.getElementById('qualityAutofillText').value;
+            if (!text.trim()) {
+                setAutofillMessage('qualityAutofillMessage', '⚠️ 请输入数据', '#faad14');
+                return;
+            }
+
+            const parsed = parseQualityAutofillText(text);
+            if (parsed.items.length === 0 && !parsed.priceExecutionTime) {
+                setAutofillMessage('qualityAutofillMessage', '⚠️ 未识别到有效数据，请检查格式', '#ff4d4f');
+                return;
+            }
+
+            if (parsed.items.length === 0 && parsed.priceExecutionTime) {
+                document.getElementById('priceExecutionTime').value = parsed.priceExecutionTime;
+                setAutofillMessage('qualityAutofillMessage', '✓ 已识别价格执行时间，未发现煤种价格数据');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/billboards/${billboardId}/autofill-mappings?module=quality`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                const mappings = result.data || [];
+
+                if (mappings.length === 0) {
+                    await showFirstTimeQualityConfig(parsed);
+                } else {
+                    await applyQualityAutofill(parsed.items, mappings, parsed.priceExecutionTime);
+                }
+            } catch (error) {
+                setAutofillMessage('qualityAutofillMessage', '❌ 错误: ' + error.message, '#ff4d4f');
+            }
+        }
+
+        async function showFirstTimeQualityConfig(parsed) {
+            const html = `
+                <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center;" id="qualityConfigModal">
+                    <div style="background: white; border-radius: 8px; padding: 20px; max-width: 900px; max-height: 80vh; overflow-y: auto; width: 92%;">
+                        <h3 style="margin-bottom: 15px;">首次配置 - 建立质量/价格映射关系</h3>
+                        <p style="color: #8c8c8c; font-size: 13px; margin-bottom: 10px;">左侧为识别到的煤种，右侧输入看板中对应的煤种名称。</p>
+                        ${parsed.priceExecutionTime ? `<div style="margin-bottom: 15px; color: #389e0d; font-size: 13px;">已识别价格执行时间：${parsed.priceExecutionTime}</div>` : ''}
+                        <table class="data-table" style="margin-bottom: 20px;">
+                            <thead>
+                                <tr>
+                                    <th style="width: 28%;">识别煤种</th>
+                                    <th style="width: 28%;">看板显示名称</th>
+                                    <th style="width: 18%;">含税价格</th>
+                                    <th style="width: 16%;">较上期变动</th>
+                                    <th style="width: 10%;">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${parsed.items.map((item, index) => `
+                                    <tr>
+                                        <td>${item.source_name}</td>
+                                        <td><input type="text" id="qualityDisplayName_${index}" value="${item.source_name}" style="width: 100%; padding: 6px;"></td>
+                                        <td>${item.price}</td>
+                                        <td>${item.change_value}</td>
+                                        <td><button class="btn btn-danger" style="font-size: 12px; padding: 4px 8px;" onclick="removeQualityConfigRow(${index})">删除</button></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                            <button class="btn btn-danger" onclick="closeQualityConfigModal()">取消</button>
+                            <button class="btn btn-success" onclick="saveFirstTimeQualityConfig(${JSON.stringify(parsed).replace(/"/g, '&quot;')})">保存并创建</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', html);
+        }
+
+        function closeQualityConfigModal() {
+            const modal = document.getElementById('qualityConfigModal');
+            if (modal) modal.remove();
+        }
+
+        async function saveFirstTimeQualityConfig(parsed) {
+            const mappings = [];
+            const formData = [];
+
+            for (let i = 0; i < parsed.items.length; i++) {
+                const displayNameInput = document.getElementById(`qualityDisplayName_${i}`);
+                if (!displayNameInput) continue;
+
+                const displayName = displayNameInput.value.trim();
+                if (!displayName) {
+                    alert('请为所有煤种输入显示名称');
+                    return;
+                }
+
+                const item = parsed.items[i];
+                mappings.push({
+                    source_name: item.source_name,
+                    display_name: displayName
+                });
+
+                formData.push({
+                    pit_name: displayName,
+                    heat_value: '',
+                    ash: '',
+                    sulfur: '',
+                    price: item.price,
+                    change_value: item.change_value
+                });
+            }
+
+            try {
+                await fetch(`${API_BASE_URL}/billboards/${billboardId}/autofill-mappings`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ module: 'quality', mappings: mappings })
+                });
+
+                qualityData = formData;
+                renderQuality();
+
+                if (parsed.priceExecutionTime) {
+                    document.getElementById('priceExecutionTime').value = parsed.priceExecutionTime;
+                }
+
+                closeQualityConfigModal();
+                setAutofillMessage('qualityAutofillMessage', `✓ 已创建 ${formData.length} 个煤种及映射关系`);
+                document.getElementById('qualityAutofillText').value = '';
+            } catch (error) {
+                alert('保存失败: ' + error.message);
+            }
+        }
+
+        async function applyQualityAutofill(parsedItems, mappings, priceExecutionTime) {
+            const mappingMap = {};
+            mappings.forEach(m => {
+                mappingMap[m.source_name] = m.display_name;
+            });
+
+            let updatedCount = 0;
+            let missingRowCount = 0;
+            const unmapped = [];
+
+            parsedItems.forEach(item => {
+                const displayName = mappingMap[item.source_name];
+                if (!displayName) {
+                    unmapped.push(item);
+                    return;
+                }
+
+                const row = qualityData.find(r => r.pit_name === displayName);
+                if (!row) {
+                    missingRowCount++;
+                    return;
+                }
+
+                row.price = item.price;
+                row.change_value = item.change_value;
+                updatedCount++;
+            });
+
+            if (priceExecutionTime) {
+                document.getElementById('priceExecutionTime').value = priceExecutionTime;
+            }
+
+            renderQuality();
+
+            const extraMessages = [];
+            if (priceExecutionTime) {
+                extraMessages.push('已更新价格执行时间');
+            }
+            if (missingRowCount > 0) {
+                extraMessages.push(`有 ${missingRowCount} 个已映射煤种未在表单中找到`);
+            }
+
+            if (unmapped.length === 0) {
+                const suffix = extraMessages.length > 0 ? `（${extraMessages.join('，')}）` : '';
+                setAutofillMessage('qualityAutofillMessage', `✓ 已更新 ${updatedCount} 个煤种${suffix}`);
+            } else {
+                const suffix = extraMessages.length > 0 ? `，${extraMessages.join('，')}` : '';
+                setAutofillMessage(
+                    'qualityAutofillMessage',
+                    `✓ 已更新 ${updatedCount} 个煤种<span style="color: #faad14;"> ⚠️ 发现 ${unmapped.length} 个新煤种 <a href="#" onclick="showNewQualityConfig(${JSON.stringify(unmapped).replace(/"/g, '&quot;')}); return false;" style="color: #1890ff;">立即配置</a>${suffix}</span>`,
+                    '#52c41a',
+                    true
+                );
+            }
+
+            document.getElementById('qualityAutofillText').value = '';
+        }
+
+        function showNewQualityConfig(unmapped) {
+            const html = `
+                <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center;" id="newQualityModal">
+                    <div style="background: white; border-radius: 8px; padding: 20px; max-width: 780px; max-height: 80vh; overflow-y: auto; width: 92%;">
+                        <h3 style="margin-bottom: 15px;">配置新煤种</h3>
+                        <table class="data-table" style="margin-bottom: 20px;">
+                            <thead>
+                                <tr>
+                                    <th style="width: 30%;">识别煤种</th>
+                                    <th style="width: 30%;">看板显示名称</th>
+                                    <th style="width: 20%;">含税价格</th>
+                                    <th style="width: 20%;">较上期变动</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${unmapped.map((item, index) => `
+                                    <tr>
+                                        <td>${item.source_name}</td>
+                                        <td><input type="text" id="newQualityDisplayName_${index}" value="${item.source_name}" style="width: 100%; padding: 6px;"></td>
+                                        <td>${item.price}</td>
+                                        <td>${item.change_value}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                            <button class="btn btn-danger" onclick="closeNewQualityModal()">暂不处理</button>
+                            <button class="btn btn-success" onclick="saveNewQualityConfig(${JSON.stringify(unmapped).replace(/"/g, '&quot;')})">保存并添加到末尾</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', html);
+        }
+
+        function closeNewQualityModal() {
+            const modal = document.getElementById('newQualityModal');
+            if (modal) modal.remove();
+        }
+
+        async function saveNewQualityConfig(unmapped) {
+            const mappings = [];
+            const newRows = [];
+
+            for (let i = 0; i < unmapped.length; i++) {
+                const displayName = document.getElementById(`newQualityDisplayName_${i}`).value.trim();
+                if (!displayName) {
+                    alert('请为所有煤种输入显示名称');
+                    return;
+                }
+
+                mappings.push({
+                    source_name: unmapped[i].source_name,
+                    display_name: displayName
+                });
+
+                newRows.push({
+                    pit_name: displayName,
+                    heat_value: '',
+                    ash: '',
+                    sulfur: '',
+                    price: unmapped[i].price,
+                    change_value: unmapped[i].change_value
+                });
+            }
+
+            try {
+                await fetch(`${API_BASE_URL}/billboards/${billboardId}/autofill-mappings`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ module: 'quality', mappings: mappings })
+                });
+
+                qualityData.push(...newRows);
+                renderQuality();
+
+                closeNewQualityModal();
+                setAutofillMessage('qualityAutofillMessage', `✓ 已添加 ${newRows.length} 个新煤种`);
+            } catch (error) {
+                alert('保存失败: ' + error.message);
+            }
+        }
+
+        async function manageQualityMappings() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/billboards/${billboardId}/autofill-mappings?module=quality`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                const mappings = result.data || [];
+
+                if (mappings.length === 0) {
+                    alert('暂无映射关系，请先使用自动填充功能创建映射');
+                    return;
+                }
+
+                const html = `
+                    <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center;" id="manageQualityMappingModal">
+                        <div style="background: white; border-radius: 8px; padding: 20px; max-width: 800px; max-height: 80vh; overflow-y: auto; width: 90%;">
+                            <h3 style="margin-bottom: 15px;">映射管理 - 质量/价格模块</h3>
+                            <table class="data-table" style="margin-bottom: 20px;">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 35%;">识别煤种</th>
+                                        <th style="width: 35%;">看板名称</th>
+                                        <th style="width: 30%;">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${mappings.map(m => `
+                                        <tr id="qualityMappingRow_${m.id}">
+                                            <td>${m.source_name}</td>
+                                            <td>${m.display_name}</td>
+                                            <td>
+                                                <button class="btn btn-primary" style="font-size: 12px; padding: 4px 8px;" onclick="editQualityMapping(${m.id}, '${m.source_name.replace(/'/g, "\\'")}', '${m.display_name.replace(/'/g, "\\'")}')">编辑</button>
+                                                <button class="btn btn-danger" style="font-size: 12px; padding: 4px 8px;" onclick="deleteQualityMapping(${m.id})">删除</button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                            <div style="display: flex; gap: 10px; justify-content: space-between;">
+                                <button class="btn btn-danger" onclick="clearAllQualityMappings()">清空全部映射</button>
+                                <button class="btn btn-primary" onclick="closeQualityMappingModal()">关闭</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.insertAdjacentHTML('beforeend', html);
+            } catch (error) {
+                alert('加载映射失败: ' + error.message);
+            }
+        }
+
+        function closeQualityMappingModal() {
+            const modal = document.getElementById('manageQualityMappingModal');
+            if (modal) modal.remove();
+        }
+
+        function editQualityMapping(id, sourceName, displayName) {
+            const newDisplayName = prompt(`编辑看板名称\n识别煤种: ${sourceName}`, displayName);
+            if (newDisplayName && newDisplayName.trim()) {
+                fetch(`${API_BASE_URL}/billboards/${billboardId}/autofill-mappings/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ source_name: sourceName, display_name: newDisplayName.trim() })
+                })
+                .then(() => {
+                    closeQualityMappingModal();
+                    manageQualityMappings();
+                })
+                .catch(error => alert('更新失败: ' + error.message));
+            }
+        }
+
+        function deleteQualityMapping(id) {
+            if (!confirm('确定要删除这个映射吗？（不会删除表单中的数据）')) return;
+
+            fetch(`${API_BASE_URL}/billboards/${billboardId}/autofill-mappings/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            .then(() => {
+                const row = document.getElementById(`qualityMappingRow_${id}`);
+                if (row) row.remove();
+            })
+            .catch(error => alert('删除失败: ' + error.message));
+        }
+
+        function clearAllQualityMappings() {
+            if (!confirm('确定要清空所有映射吗？（不会删除表单中的数据）\n这将需要重新配置映射关系。')) return;
+
+            fetch(`${API_BASE_URL}/billboards/${billboardId}/autofill-mappings?module=quality`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            .then(() => {
+                alert('映射已清空');
+                closeQualityMappingModal();
+            })
+            .catch(error => alert('清空失败: ' + error.message));
+        }
+
+        function removeQualityConfigRow(index) {
+            const input = document.querySelector(`#qualityDisplayName_${index}`);
+            if (!input) return;
+            const row = input.closest('tr');
+            if (row) row.remove();
+        }
+
+        // ==================== 结束 v1.6 ====================
 
         loadData();
     </script>

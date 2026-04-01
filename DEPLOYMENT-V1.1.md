@@ -72,7 +72,7 @@
 ## 🌐 访问地址
 
 ### 🔧 后台管理系统
-**地址**: https://3000-capy-1772251385994-336037-preview.happycapy.ai/admin/index.html
+**地址**: https://3000-capy-1772251385994-336037-preview.happycapy.ai/admin/
 
 **登录信息**:
 - 用户名: `hulianshikong`
@@ -277,7 +277,7 @@ curl -s http://localhost:3000/api/client/billboards/1 | \
 
 **主要更新**: 物流费用模块全面升级，支持三种运输类型的独立管理和三列布局展示
 
-**后台管理**: https://3000-capy-1772251385994-336037-preview.happycapy.ai/admin/index.html
+**后台管理**: https://3000-capy-1772251385994-336037-preview.happycapy.ai/admin/
 **客户端展示**: https://3000-capy-1772251385994-336037-preview.happycapy.ai/client/index.html?id=1
 
 祝使用愉快！🚀

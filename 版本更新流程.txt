@@ -168,7 +168,7 @@
 - 文档重命名为【更新记录.txt】
 
 ### 🌐 访问地址
-- 客户端：https://xxx/client/?id=1
+- 客户端：https://xxx/client/index.html?id=1
 - 管理后台：https://xxx/admin/
 
 ### 💡 使用提示

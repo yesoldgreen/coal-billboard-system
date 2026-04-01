@@ -5,8 +5,8 @@
 ## 系统架构
 
 - **后端服务**: Node.js + Express + SQLite
-- **后台管理**: React + Ant Design
-- **客户端展示**: React + 自定义CSS
+- **后台管理**: 后端托管的静态 HTML 页面
+- **客户端展示**: 后端托管的静态 HTML 页面
 
 ## 功能特性
 
@@ -28,16 +28,7 @@
 ### 1. 安装依赖
 
 ```bash
-# 安装后端依赖
 cd backend
-npm install
-
-# 安装后台管理依赖
-cd ../admin-frontend
-npm install
-
-# 安装客户端依赖
-cd ../client-frontend
 npm install
 ```
 
@@ -50,28 +41,13 @@ npm start
 # 服务运行在 http://localhost:3000
 ```
 
-#### 启动后台管理
-```bash
-cd admin-frontend
-npm start
-# 服务运行在 http://localhost:3001
-```
-
-#### 启动客户端
-```bash
-cd client-frontend
-# 修改 package.json 中的端口为 3002
-PORT=3002 npm start
-# 服务运行在 http://localhost:3002
-```
-
 ### 3. 访问系统
 
-- **后台管理**: http://localhost:3001
+- **后台管理**: http://localhost:3000/admin/
   - 用户名: `hulianshikong`
   - 密码: `hlsk2026`
 
-- **客户端**: http://localhost:3002/billboard/{告示牌ID}
+- **客户端**: http://localhost:3000/client/index.html?id={告示牌ID}
 
 ## 使用说明
 
@@ -134,10 +110,9 @@ PORT=3002 npm start
 ## 技术栈版本
 
 - Node.js >= 14.x
-- React 18.x
 - Express 4.x
-- Ant Design 5.x
-- better-sqlite3 9.x
+- sqlite3 5.x
+- 原生 HTML/CSS/JavaScript
 
 ## 注意事项
 
@@ -169,24 +144,13 @@ npm install --production
 node server.js
 ```
 
-### 前端构建
-```bash
-# 构建后台管理
-cd admin-frontend
-npm run build
-
-# 构建客户端
-cd ../client-frontend
-npm run build
-```
-
-构建后的静态文件可以部署到 Nginx 等 Web 服务器。
+静态页面文件位于 `public/admin` 和 `public/client`，由后端直接托管。
 
 ## 故障排查
 
 1. **数据库连接错误**: 检查 backend 目录权限
 2. **跨域问题**: 检查后端 CORS 配置
-3. **端口占用**: 确保 3000、3001、3002 端口未被占用
+3. **端口占用**: 确保 3000 端口未被占用
 4. **数据不更新**: 检查浏览器控制台网络请求
 
 ## 许可证

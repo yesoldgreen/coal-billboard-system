@@ -9,7 +9,7 @@
 ## 🌐 访问地址汇总
 
 ### 🔧 后台管理系统（管理告示牌和数据）
-**地址**: https://3000-capy-1772251385994-336037-preview.happycapy.ai/admin/index.html
+**地址**: https://3000-capy-1772251385994-336037-preview.happycapy.ai/admin/
 
 **功能**:
 - ✅ 创建/修改/删除告示牌
@@ -41,7 +41,7 @@
 
 ### 1️⃣ 登录后台管理系统
 
-1. 访问：https://3000-capy-1772251385994-336037-preview.happycapy.ai/admin/index.html
+1. 访问：https://3000-capy-1772251385994-336037-preview.happycapy.ai/admin/
 2. 输入用户名：`hulianshikong`
 3. 输入密码：`hlsk2026`
 4. 点击"登录"
@@ -209,7 +209,7 @@
 
 | 系统 | 地址 | 需要登录 | 用途 |
 |------|------|----------|------|
-| 后台管理 | https://3000-capy-1772251385994-336037-preview.happycapy.ai/admin/index.html | ✅ 是 | 管理告示牌和数据 |
+| 后台管理 | https://3000-capy-1772251385994-336037-preview.happycapy.ai/admin/ | ✅ 是 | 管理告示牌和数据 |
 | 客户端展示 | https://3000-capy-1772251385994-336037-preview.happycapy.ai/client/index.html?id=1 | ❌ 否 | 查看告示牌数据 |
 | API服务 | https://3000-capy-1772251385994-336037-preview.happycapy.ai/api | - | 后端API接口 |
 
@@ -232,7 +232,7 @@
 现在您可以：
 
 1. **立即开始使用**
-   - 登录后台：https://3000-capy-1772251385994-336037-preview.happycapy.ai/admin/index.html
+   - 登录后台：https://3000-capy-1772251385994-336037-preview.happycapy.ai/admin/
    - 查看客户端：https://3000-capy-1772251385994-336037-preview.happycapy.ai/client/index.html?id=1
 
 2. **创建自己的告示牌**
@@ -260,7 +260,7 @@
 
 您的煤矿内参告示牌系统已全面上线！
 
-**后台管理地址**: https://3000-capy-1772251385994-336037-preview.happycapy.ai/admin/index.html
+**后台管理地址**: https://3000-capy-1772251385994-336037-preview.happycapy.ai/admin/
 
 **客户端展示地址**: https://3000-capy-1772251385994-336037-preview.happycapy.ai/client/index.html?id=1
 

@@ -32,30 +32,6 @@ cd ..
 echo "✓ 后端依赖安装完成"
 echo ""
 
-# 安装后台管理依赖
-echo "2. 安装后台管理依赖..."
-cd admin-frontend
-npm install
-if [ $? -ne 0 ]; then
-    echo "错误: 后台管理依赖安装失败"
-    exit 1
-fi
-cd ..
-echo "✓ 后台管理依赖安装完成"
-echo ""
-
-# 安装客户端依赖
-echo "3. 安装客户端依赖..."
-cd client-frontend
-npm install
-if [ $? -ne 0 ]; then
-    echo "错误: 客户端依赖安装失败"
-    exit 1
-fi
-cd ..
-echo "✓ 客户端依赖安装完成"
-echo ""
-
 echo "========================================"
 echo "安装完成！"
 echo "========================================"
@@ -63,8 +39,10 @@ echo ""
 echo "使用以下命令启动系统："
 echo "  ./start-all.sh"
 echo ""
-echo "或者分别启动各个服务："
+echo "或者直接启动后端服务："
 echo "  cd backend && npm start"
-echo "  cd admin-frontend && PORT=3001 npm start"
-echo "  cd client-frontend && PORT=3002 npm start"
+echo ""
+echo "访问地址："
+echo "  后台管理: http://localhost:3000/admin/"
+echo "  客户端:   http://localhost:3000/client/index.html?id=1"
 echo ""
