@@ -10,7 +10,6 @@ const { applyInboundAutofill } = require('./autofill');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const SECRET_KEY = 'coal-billboard-secret-key-2026';
-const ROBOT_API_TOKEN = process.env.ROBOT_API_TOKEN || 'hlsk-robot-token-2026';
 
 // 获取本地时间字符串
 function getLocalDateTime() {
@@ -48,22 +47,6 @@ const authenticateToken = (req, res, next) => {
     req.user = user;
     next();
   });
-};
-
-const authenticateRobotToken = (req, res, next) => {
-  const authHeader = req.headers.authorization || '';
-  const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-  const apiToken = req.headers['x-api-token'] || bearerToken;
-
-  if (!apiToken) {
-    return res.status(401).json({ success: false, error: '缺少机器人访问令牌' });
-  }
-
-  if (apiToken !== ROBOT_API_TOKEN) {
-    return res.status(403).json({ success: false, error: '机器人访问令牌无效' });
-  }
-
-  next();
 };
 
 function getRequestClientIp(req) {
@@ -452,9 +435,9 @@ app.delete('/api/billboards/:id/autofill-mappings', authenticateToken, async (re
   }
 });
 
-// ==================== 机器人入站接口（v1.7） ====================
+// ==================== 机器人入站接口（v1.7.1） ====================
 
-app.post('/api/inbound/autofill', authenticateRobotToken, async (req, res) => {
+app.post('/api/inbound/autofill', async (req, res) => {
   const requestData = getInboundRequestData(req);
   const clientIp = getRequestClientIp(req);
 
