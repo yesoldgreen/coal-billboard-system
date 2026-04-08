@@ -10,6 +10,21 @@ const { applyInboundAutofill } = require('./autofill');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const SECRET_KEY = 'coal-billboard-secret-key-2026';
+const ALLOWED_MODULES = ['queue', 'quality', 'logistics'];
+const ALLOWED_COLUMN_GROUPS = ['highway', 'station', 'railway'];
+const ALLOWED_REGULAR_COLUMNS = {
+  queue: ['0', '1', '2', '3', '4'],
+  quality: ['0', '1', '2', '3', '4', '5']
+};
+const ALLOWED_LOGISTICS_COLUMNS = [
+  'highway-from',
+  'highway-freight',
+  'station-name',
+  'station-loading',
+  'station-fee',
+  'railway-from',
+  'railway-freight'
+];
 
 // 获取本地时间字符串
 function getLocalDateTime() {
@@ -71,6 +86,48 @@ function getInboundRequestData(req) {
     formatCode,
     rawText,
     contentType: String(headers['content-type'] || '')
+  };
+}
+
+function normalizeStringArray(values, allowedValues) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return [...new Set(
+    values
+      .map(value => String(value || '').trim())
+      .filter(value => value && allowedValues.includes(value))
+  )];
+}
+
+function normalizeDisplaySettings(input) {
+  let settings = input;
+
+  if (typeof settings === 'string') {
+    try {
+      settings = JSON.parse(settings);
+    } catch (error) {
+      settings = {};
+    }
+  }
+
+  if (!settings || typeof settings !== 'object') {
+    settings = {};
+  }
+
+  const hiddenColumnsInput = settings.hiddenColumns && typeof settings.hiddenColumns === 'object'
+    ? settings.hiddenColumns
+    : {};
+
+  return {
+    hiddenModules: normalizeStringArray(settings.hiddenModules, ALLOWED_MODULES),
+    hiddenColumnGroups: normalizeStringArray(settings.hiddenColumnGroups, ALLOWED_COLUMN_GROUPS),
+    hiddenColumns: {
+      queue: normalizeStringArray(hiddenColumnsInput.queue, ALLOWED_REGULAR_COLUMNS.queue),
+      quality: normalizeStringArray(hiddenColumnsInput.quality, ALLOWED_REGULAR_COLUMNS.quality),
+      logistics: normalizeStringArray(hiddenColumnsInput.logistics, ALLOWED_LOGISTICS_COLUMNS)
+    }
   };
 }
 
@@ -435,7 +492,7 @@ app.delete('/api/billboards/:id/autofill-mappings', authenticateToken, async (re
   }
 });
 
-// ==================== 机器人入站接口（v1.7.1） ====================
+// ==================== 机器人入站接口（v1.7.2） ====================
 
 app.post('/api/inbound/autofill', async (req, res) => {
   const requestData = getInboundRequestData(req);
@@ -571,6 +628,31 @@ app.post('/api/inbound/autofill', async (req, res) => {
 
 // ==================== 客户端接口 ====================
 
+app.put('/api/client/billboards/:id/display-settings', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const billboard = await db.prepare('SELECT id FROM billboards WHERE id = ?').get(id);
+
+    if (!billboard) {
+      return res.status(404).json({ success: false, error: '告示牌不存在' });
+    }
+
+    const displaySettings = normalizeDisplaySettings(req.body?.display_settings);
+    await db.prepare('UPDATE billboards SET display_settings = ?, updated_at = ? WHERE id = ?').run(
+      JSON.stringify(displaySettings),
+      getLocalDateTime(),
+      id
+    );
+
+    res.json({
+      success: true,
+      data: displaySettings
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: '服务器错误' });
+  }
+});
+
 // 获取告示牌展示数据（无需认证）
 app.get('/api/client/billboards/:id', async (req, res) => {
   try {
@@ -596,6 +678,8 @@ app.get('/api/client/billboards/:id', async (req, res) => {
         price_execution_time: item.price_execution_time || null
       };
     });
+
+    billboard.display_settings = normalizeDisplaySettings(billboard.display_settings);
 
     res.json({
       success: true,

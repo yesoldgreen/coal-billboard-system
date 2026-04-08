@@ -22,6 +22,51 @@
             background-color: #fff;
         }
 
+        .client-page-actions {
+            max-width: 1200px;
+            margin: 16px auto 32px;
+            padding: 0 20px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .save-status {
+            font-size: 14px;
+            color: #389e0d;
+            min-height: 20px;
+        }
+
+        .save-status.error {
+            color: #cf1322;
+        }
+
+        .save-hide-btn {
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #1677ff 0%, #0958d9 100%);
+            color: #fff;
+            font-size: 15px;
+            font-weight: bold;
+            padding: 12px 22px;
+            cursor: pointer;
+            box-shadow: 0 6px 18px rgba(22, 119, 255, 0.22);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+        }
+
+        .save-hide-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 24px rgba(22, 119, 255, 0.28);
+        }
+
+        .save-hide-btn:disabled {
+            cursor: wait;
+            opacity: 0.7;
+            transform: none;
+            box-shadow: 0 6px 18px rgba(22, 119, 255, 0.18);
+        }
+
         .loading-container, .error-container {
             display: flex;
             justify-content: center;
@@ -382,6 +427,16 @@
                 padding: 0;
             }
 
+            .client-page-actions {
+                padding: 0 10px 24px;
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .save-status {
+                text-align: center;
+            }
+
             .module {
                 margin: 10px;
             }
@@ -423,6 +478,10 @@
             .footer-left {
                 align-items: center;
             }
+
+            .save-hide-btn {
+                width: 100%;
+            }
         }
     </style>
 </head>
@@ -435,6 +494,17 @@
 
     <script>
         const API_BASE_URL = '/api';
+        let saveStatusTimer = null;
+
+        const createEmptyDisplaySettings = () => ({
+            hiddenModules: [],
+            hiddenColumnGroups: [],
+            hiddenColumns: {
+                queue: [],
+                quality: [],
+                logistics: []
+            }
+        });
 
         // 从URL获取billboard ID
         const getBillboardId = () => {
@@ -678,8 +748,12 @@
                         </div>
                     </div>
 
-                    <!-- v1.7.1: 版本号 -->
-                    <div class="version-info">v1.7.1</div>
+                    <!-- v1.7.2: 版本号 -->
+                    <div class="version-info">v1.7.2</div>
+                </div>
+                <div class="client-page-actions">
+                    <div id="save-status" class="save-status"></div>
+                    <button id="save-display-settings-btn" class="save-hide-btn" type="button">隐藏保存</button>
                 </div>
             `;
         };
@@ -729,6 +803,163 @@
                     railwayHeader.style.display = 'none';
                 }
             }
+        };
+
+        const resetHiddenState = () => {
+            document.querySelectorAll('.module-hidden').forEach(module => {
+                module.classList.remove('module-hidden');
+            });
+
+            document.querySelectorAll('.col-hidden').forEach(col => {
+                col.classList.remove('col-hidden');
+            });
+
+            document.querySelectorAll('.th-hidden').forEach(header => {
+                header.classList.remove('th-hidden');
+            });
+
+            document.querySelectorAll('.td-hidden').forEach(cell => {
+                cell.classList.remove('td-hidden');
+            });
+
+            updateLogisticsColspan();
+        };
+
+        const applyDisplaySettings = (settings) => {
+            const displaySettings = settings && typeof settings === 'object' ? settings : createEmptyDisplaySettings();
+            resetHiddenState();
+
+            (displaySettings.hiddenModules || []).forEach(moduleType => {
+                const module = document.querySelector(`.module[data-module="${moduleType}"]`);
+                if (module) {
+                    module.classList.add('module-hidden');
+                }
+            });
+
+            (displaySettings.hiddenColumnGroups || []).forEach(colType => {
+                document.querySelectorAll(`.logistics-table .col-${colType}`).forEach(col => {
+                    col.classList.add('col-hidden');
+                });
+                document.querySelectorAll(`.logistics-table .section-${colType}`).forEach(col => {
+                    col.classList.add('col-hidden');
+                });
+            });
+
+            ['queue', 'quality'].forEach(moduleType => {
+                const table = document.querySelector(`.data-table[data-module-id="${moduleType}"]`);
+                if (!table) return;
+
+                ((displaySettings.hiddenColumns && displaySettings.hiddenColumns[moduleType]) || []).forEach(colIndex => {
+                    const header = table.querySelector(`.clickable-header[data-col-index="${colIndex}"]`);
+                    if (header) {
+                        header.classList.add('th-hidden');
+                    }
+
+                    table.querySelectorAll(`tbody td[data-col-index="${colIndex}"]`).forEach(cell => {
+                        cell.classList.add('td-hidden');
+                    });
+                });
+            });
+
+            const logisticsTable = document.querySelector('.logistics-table');
+            if (logisticsTable) {
+                ((displaySettings.hiddenColumns && displaySettings.hiddenColumns.logistics) || []).forEach(colClass => {
+                    const header = logisticsTable.querySelector(`.clickable-header[data-col-class="${colClass}"]`);
+                    if (header) {
+                        header.classList.add('th-hidden');
+                    }
+
+                    logisticsTable.querySelectorAll(`tbody td[data-col-class="${colClass}"]`).forEach(cell => {
+                        cell.classList.add('td-hidden');
+                    });
+                });
+            }
+
+            updateLogisticsColspan();
+        };
+
+        const collectDisplaySettings = () => {
+            const settings = createEmptyDisplaySettings();
+
+            settings.hiddenModules = Array.from(document.querySelectorAll('.module.module-hidden[data-module]'))
+                .map(module => module.getAttribute('data-module'))
+                .filter(Boolean);
+
+            settings.hiddenColumnGroups = Array.from(document.querySelectorAll('.logistics-table .section-header[data-col-type].col-hidden'))
+                .map(header => header.getAttribute('data-col-type'))
+                .filter(Boolean);
+
+            ['queue', 'quality'].forEach(moduleType => {
+                const table = document.querySelector(`.data-table[data-module-id="${moduleType}"]`);
+                if (!table) return;
+
+                settings.hiddenColumns[moduleType] = Array.from(table.querySelectorAll('.clickable-header[data-col-index].th-hidden'))
+                    .map(header => header.getAttribute('data-col-index'))
+                    .filter(value => value !== null);
+            });
+
+            const logisticsTable = document.querySelector('.logistics-table');
+            if (logisticsTable) {
+                settings.hiddenColumns.logistics = Array.from(logisticsTable.querySelectorAll('.clickable-header[data-col-class].th-hidden'))
+                    .map(header => header.getAttribute('data-col-class'))
+                    .filter(Boolean);
+            }
+
+            return settings;
+        };
+
+        const showSaveStatus = (message, isError = false) => {
+            const statusEl = document.getElementById('save-status');
+            if (!statusEl) return;
+
+            statusEl.textContent = message;
+            statusEl.classList.toggle('error', isError);
+
+            if (saveStatusTimer) {
+                clearTimeout(saveStatusTimer);
+            }
+
+            if (message) {
+                saveStatusTimer = setTimeout(() => {
+                    statusEl.textContent = '';
+                    statusEl.classList.remove('error');
+                }, 2500);
+            }
+        };
+
+        const initSaveDisplaySettingsFeature = (billboardId) => {
+            const button = document.getElementById('save-display-settings-btn');
+            if (!button) return;
+
+            button.addEventListener('click', async () => {
+                const originalText = button.textContent;
+                button.disabled = true;
+                button.textContent = '保存中...';
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/client/billboards/${billboardId}/display-settings`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            display_settings: collectDisplaySettings()
+                        })
+                    });
+
+                    const result = await response.json();
+                    if (!response.ok || !result.success) {
+                        throw new Error(result.error || '保存失败');
+                    }
+
+                    showSaveStatus('隐藏状态已保存');
+                } catch (error) {
+                    showSaveStatus(error.message || '保存失败，请稍后重试', true);
+                } finally {
+                    button.disabled = false;
+                    button.textContent = originalText;
+                }
+            });
         };
 
         // v1.3: 初始化隐藏功能 | v1.3.3: 隐藏整个模块包括标题栏 | v1.4: 表头点击隐藏列
@@ -840,8 +1071,9 @@
 
                 if (result.success) {
                     document.getElementById('app').innerHTML = renderBillboard(result.data);
-                    // v1.3: 初始化隐藏功能
                     initHideFeature();
+                    applyDisplaySettings(result.data.billboard.display_settings);
+                    initSaveDisplaySettingsFeature(billboardId);
                 } else {
                     document.getElementById('app').innerHTML = `
                         <div class="error-container">

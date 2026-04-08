@@ -64,22 +64,29 @@ async function initDatabase() {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         subtitle TEXT DEFAULT '实时更新 | 准确可靠',
+        display_settings TEXT DEFAULT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    // v1.4.6.1: 检查并添加 subtitle 字段（兼容旧数据库）
+    // 检查并补齐 billboards 表字段（兼容旧数据库）
     try {
       const billboardInfo = await dbWrapper.prepare(`PRAGMA table_info(billboards)`).all();
       const hasSubtitle = billboardInfo.some(col => col.name === 'subtitle');
+      const hasDisplaySettings = billboardInfo.some(col => col.name === 'display_settings');
       if (!hasSubtitle) {
         console.log('检测到旧版本数据库，正在添加 subtitle 字段...');
         await dbWrapper.exec(`ALTER TABLE billboards ADD COLUMN subtitle TEXT DEFAULT '实时更新 | 准确可靠'`);
         console.log('subtitle 字段添加成功');
       }
+      if (!hasDisplaySettings) {
+        console.log('检测到旧版本数据库，正在添加 display_settings 字段...');
+        await dbWrapper.exec(`ALTER TABLE billboards ADD COLUMN display_settings TEXT DEFAULT NULL`);
+        console.log('display_settings 字段添加成功');
+      }
     } catch (error) {
-      console.error('检查 subtitle 字段时出错:', error);
+      console.error('检查 billboards 字段时出错:', error);
     }
 
     // 排队拉运表 - v1.4.5: 添加 previous_queuing 字段用于颜色对比
