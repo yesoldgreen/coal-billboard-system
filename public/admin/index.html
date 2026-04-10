@@ -383,7 +383,7 @@
                 <div class="header">
                     <div>
                         <h1>🏭 煤矿内参告示牌 - 后台管理</h1>
-                        <div style="color: rgba(255,255,255,0.7); font-size: 12px; margin-top: 5px;">v1.7.3</div>
+                        <div style="color: rgba(255,255,255,0.7); font-size: 12px; margin-top: 5px;">v1.7.4</div>
                     </div>
                     <div class="user-info">
                         <span>👤 ${username}</span>
@@ -411,9 +411,9 @@
                                                 ID: ${b.id} | 创建时间: ${formatDate(b.created_at)}
                                                 ${b.subtitle ? `<br>副标题: ${b.subtitle}` : ''}
                                                 <br>
-                                                <span class="copy-link" onclick="copyExternalClientUrl(${b.id})">📋 复制对外客户端链接</span>
+                                                <a class="copy-link" href="/client/external.html?id=${b.id}" target="_blank" rel="noopener noreferrer">🌐 打开对外客户端</a>
                                                 <br>
-                                                <span class="copy-link" onclick="copyInternalClientUrl(${b.id})">🛠️ 复制对内客户端链接</span>
+                                                <a class="copy-link" href="/client/index.html?id=${b.id}" target="_blank" rel="noopener noreferrer">🛠️ 打开对内客户端</a>
                                             </div>
                                         </div>
                                         <div class="billboard-actions">
@@ -434,30 +434,6 @@
         function formatDate(dateStr) {
             const date = new Date(dateStr);
             return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-        }
-
-        function copyUrlWithFallback(url, label) {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(url).then(() => {
-                    alert(`${label}已复制到剪贴板！\n\n${url}`);
-                }).catch(() => {
-                    prompt('请复制以下链接：', url);
-                });
-            } else {
-                prompt('请复制以下链接：', url);
-            }
-        }
-
-        // 复制对外客户端链接
-        function copyExternalClientUrl(id) {
-            const url = `${window.location.origin}/client/external.html?id=${id}`;
-            copyUrlWithFallback(url, '对外客户端链接');
-        }
-
-        // 复制对内客户端链接
-        function copyInternalClientUrl(id) {
-            const url = `${window.location.origin}/client/index.html?id=${id}`;
-            copyUrlWithFallback(url, '对内客户端链接');
         }
 
         // 登录
