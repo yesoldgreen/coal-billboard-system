@@ -5,7 +5,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('./database');
 const path = require('path');
-const { applyInboundAutofill } = require('./autofill');
+const { applyInboundAutofill, getInboundFormatMetadata } = require('./autofill');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -87,6 +87,14 @@ function getInboundRequestData(req) {
     rawText,
     contentType: String(headers['content-type'] || '')
   };
+}
+
+function getPublicBaseUrl(req) {
+  const forwardedProto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
+  const forwardedHost = String(req.headers['x-forwarded-host'] || '').split(',')[0].trim();
+  const host = forwardedHost || String(req.headers.host || '').trim();
+  const protocol = forwardedProto || req.protocol || 'http';
+  return `${protocol}://${host}`;
 }
 
 function normalizeStringArray(values, allowedValues) {
@@ -492,7 +500,7 @@ app.delete('/api/billboards/:id/autofill-mappings', authenticateToken, async (re
   }
 });
 
-// ==================== 机器人入站接口（v1.7.2） ====================
+// ==================== 机器人入站接口（v1.7.5） ====================
 
 app.post('/api/inbound/autofill', async (req, res) => {
   const requestData = getInboundRequestData(req);
@@ -572,12 +580,35 @@ app.post('/api/inbound/autofill', async (req, res) => {
       return res.status(404).json({ success: false, status: 'billboard_not_found', error: '目标告示牌不存在' });
     }
 
+    const formatMetadata = getInboundFormatMetadata(moduleType, formatCode);
+    if (!formatMetadata) {
+      await writeInboundLog({
+        billboard_id: billboardId,
+        module_type: moduleType,
+        format_code: formatCode,
+        content_type: contentType,
+        client_ip: clientIp,
+        raw_text: rawText,
+        status: 'unsupported_format',
+        error_message: `当前未配置 ${moduleType} 模块格式 ${formatCode} 的元数据`
+      });
+      return res.status(400).json({
+        success: false,
+        status: 'unsupported_format',
+        error: `当前未配置 ${moduleType} 模块格式 ${formatCode} 的元数据`
+      });
+    }
+
     const result = await applyInboundAutofill(db, billboardId, moduleType, formatCode, rawText);
+    const messageText = `${formatMetadata.coal_source_name}最新${formatMetadata.content_label}信息`;
+    const externalClientUrl = `${getPublicBaseUrl(req)}/client/external.html?id=${billboardId}`;
     const summary = JSON.stringify({
       updatedCount: result.updatedCount || 0,
       unmapped: result.unmapped || [],
       missingRows: result.missingRows || [],
-      priceExecutionTime: result.priceExecutionTime || null
+      priceExecutionTime: result.priceExecutionTime || null,
+      messageText,
+      externalClientUrl
     });
 
     const logId = await writeInboundLog({
@@ -594,6 +625,8 @@ app.post('/api/inbound/autofill', async (req, res) => {
     res.json({
       success: true,
       status: 'applied',
+      message_text: messageText,
+      external_client_url: externalClientUrl,
       log_id: logId,
       billboard_id: billboardId,
       billboard_name: billboard.name,

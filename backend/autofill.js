@@ -1,3 +1,16 @@
+const INBOUND_FORMAT_METADATA = {
+  quality: {
+    '2001': {
+      coal_source_name: '汇能长滩煤矿',
+      content_label: '价格'
+    },
+    '2002': {
+      coal_source_name: '白家海子煤矿',
+      content_label: '价格'
+    }
+  }
+};
+
 function normalizeQualitySourceName(name) {
   return (name || '').replace(/^汇能/, '').trim();
 }
@@ -117,6 +130,12 @@ function parseInboundText(moduleType, formatCode, rawText) {
   }
 
   throw new Error(`当前不支持模块 ${moduleType}`);
+}
+
+function getInboundFormatMetadata(moduleType, formatCode) {
+  const moduleMetadata = INBOUND_FORMAT_METADATA[moduleType];
+  if (!moduleMetadata) return null;
+  return moduleMetadata[String(formatCode)] || null;
 }
 
 async function applyQueueAutofill(db, billboardId, parsed) {
@@ -289,5 +308,6 @@ module.exports = {
   parseQueueText,
   parseQualityText,
   parseInboundText,
-  applyInboundAutofill
+  applyInboundAutofill,
+  getInboundFormatMetadata
 };

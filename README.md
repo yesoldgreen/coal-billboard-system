@@ -114,6 +114,7 @@ npm start
 ### 客户端接口（无需认证）
 - `GET /api/client/billboards/:id` - 获取告示牌展示数据
 - `PUT /api/client/billboards/:id/display-settings` - 保存当前告示牌的隐藏显示配置
+- `POST /api/inbound/autofill` - 微信机器人入站更新接口，成功后会返回对外客户端链接和更新备注
 
 ## 技术栈版本
 
