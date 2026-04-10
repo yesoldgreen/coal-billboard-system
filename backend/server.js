@@ -43,8 +43,12 @@ app.use(bodyParser.json({ limit: '1mb' }));
 app.use(bodyParser.text({ type: ['text/plain'], limit: '1mb' }));
 
 // 提供静态文件服务
+app.use('/site', express.static(path.join(__dirname, '../public/site')));
 app.use('/client', express.static(path.join(__dirname, '../public/client')));
 app.use('/admin', express.static(path.join(__dirname, '../public/admin')));
+app.get('/', (req, res) => {
+  res.redirect('/site/');
+});
 
 // 认证中间件
 const authenticateToken = (req, res, next) => {
